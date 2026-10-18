@@ -76,9 +76,21 @@ fi
 
 hook_warn "[Hook] ステージ済み ${#STAGED[@]} ファイルを検査します"
 
+# NOTE:
+# scan_content をパイプの最終要素として呼ぶと、bash はそれをサブシェルで実行する.
+# SCAN_ERRORS / SCAN_WARNINGS の加算が親シェルに戻らず、後段の判定が常に偽になるため、
+# ステージ内容を変数に取ってからヒアストリングで渡し、同じシェルで実行する.
 for file in "${STAGED[@]}"; do
   scan_should_check "$file" || continue
-  git show ":$file" 2>/dev/null | scan_content "$file"
+
+  if ! STAGED_CONTENT=$(git show ":$file" 2>&1); then
+    hook_warn "[Hook] WARNING: $file のステージ内容を読めず、検査をスキップしました: $STAGED_CONTENT"
+    SCAN_WARNINGS=$((SCAN_WARNINGS + 1))
+
+    continue
+  fi
+
+  scan_content "$file" <<< "$STAGED_CONTENT"
 done
 
 # コミットメッセージ（-m / --message の 1 つ目）の 1 行目.

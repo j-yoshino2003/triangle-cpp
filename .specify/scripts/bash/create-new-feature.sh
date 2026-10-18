@@ -104,9 +104,15 @@ get_highest_from_specs() {
 get_highest_from_branches() {
     local highest=0
     
-    # Get all branches (local and remote)
-    branches=$(git branch -a 2>/dev/null || echo "")
-    
+    # Get all branches (local and remote).
+    # Do not fold a git failure into "no branches": that silently lowers the
+    # highest number and hands out a feature number that is already in use.
+    if ! branches=$(git branch -a 2>&1); then
+        echo "警告: git branch -a が失敗しました。既存ブランチから採番できません: $branches" >&2
+        echo "警告: feature 番号が既存と重複する可能性があります。" >&2
+        branches=""
+    fi
+
     if [ -n "$branches" ]; then
         while IFS= read -r branch; do
             # Clean branch name: remove leading markers and remote prefixes
@@ -130,8 +136,15 @@ get_highest_from_branches() {
 check_existing_branches() {
     local specs_dir="$1"
 
-    # Fetch all remotes to get latest branch info (suppress errors if no remotes)
-    git fetch --all --prune 2>/dev/null || true
+    # Fetch all remotes to get latest branch info.
+    # A failure here is not fatal (there may be no remote at all), but it must be
+    # visible: without the fetch, remote feature branches are invisible to the
+    # numbering below and the next number can collide with one already pushed.
+    local fetch_error
+    if ! fetch_error=$(git fetch --all --prune 2>&1); then
+        echo "警告: git fetch --all --prune が失敗しました: $fetch_error" >&2
+        echo "警告: リモートの feature ブランチを見ずに採番します。番号が重複する可能性があります。" >&2
+    fi
 
     # Get highest number from ALL branches (not just matching short name)
     local highest_branch=$(get_highest_from_branches)

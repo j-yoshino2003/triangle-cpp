@@ -147,15 +147,38 @@ function findFileIssues(filePath) {
         }
       }
 
-      // Check for TODO/FIXME without issue reference
-      const todoMatch = line.match(/\/\/\s*(TODO|FIXME):?\s*(.+)/);
-      if (todoMatch && !todoMatch[2].match(/#\d+|issue/i)) {
-        issues.push({
-          type: 'todo',
-          message: `issue 参照の無い TODO/FIXME: "${todoMatch[2].trim()}"`,
-          line: lineNum,
-          severity: 'info'
-        });
+      // Check for TODO/FIXME without issue reference.
+      // The project's comment rule allows a multi-line form: the label alone on
+      // its own line, with the body starting on the next line. Matching only the
+      // same line would let every multi-line TODO through unchecked.
+      const todoLabel = line.match(/\/\/\s*(TODO|FIXME):?\s*(.*)$/);
+      if (todoLabel) {
+        let body = todoLabel[2].trim();
+
+        if (body === '') {
+          const bodyLines = [];
+
+          for (let ahead = index + 1; ahead < lines.length; ahead += 1) {
+            const continuation = lines[ahead].match(/^\s*\/\/\s?(.*)$/);
+            if (!continuation) break;
+
+            const text = continuation[1].trim();
+            if (text === '' || /^(TODO|FIXME|NOTE)\b/.test(text)) break;
+
+            bodyLines.push(text);
+          }
+
+          body = bodyLines.join(' ');
+        }
+
+        if (body !== '' && !body.match(/#\d+|issue/i)) {
+          issues.push({
+            type: 'todo',
+            message: `issue 参照の無い TODO/FIXME: "${body}"`,
+            line: lineNum,
+            severity: 'info'
+          });
+        }
       }
       
       // Check for hardcoded secrets (basic patterns)

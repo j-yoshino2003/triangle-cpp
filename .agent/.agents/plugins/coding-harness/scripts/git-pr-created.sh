@@ -12,6 +12,10 @@ source "$SCRIPT_DIR/lib/hook-common.sh"
 
 hook_read_input
 
+# hooks.json に matcher 相当の絞り込みが無く、すべてのツール呼び出しでこのフックが起動する.
+# 実行系ツール以外はここで抜ける（ツール名が取れない場合は安全側で判定を続ける）.
+hook_is_exec_tool || exit 0
+
 COMMAND=$(hook_command)
 [[ -z "$COMMAND" ]] && exit 0
 printf '%s' "$COMMAND" | grep -qE '(^|[[:space:];&|(`$])gh(\.exe)?[[:space:]]+pr[[:space:]]+create([[:space:]]|$)' || exit 0

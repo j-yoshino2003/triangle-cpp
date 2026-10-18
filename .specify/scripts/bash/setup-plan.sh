@@ -27,8 +27,15 @@ done
 SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-# Get all paths and variables from common functions
-eval $(get_feature_paths)
+# Get all paths and variables from common functions.
+# eval $(...) hides a failure of get_feature_paths: the exit status seen by the
+# shell is eval's, so set -e does not fire and the variables stay empty, which
+# later turns `mkdir -p "$FEATURE_DIR"` into a mkdir at the filesystem root.
+if ! feature_paths=$(get_feature_paths); then
+    echo "エラー: get_feature_paths が失敗しました。" >&2
+    exit 1
+fi
+eval "$feature_paths"
 
 # Check if we're on a proper feature branch (only for git repos)
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1

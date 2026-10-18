@@ -5,7 +5,7 @@
 
 | エージェント | このファイルの読み込み方 | ハーネスの置き場 |
 |------|------|------|
-| Claude Code | `CLAUDE.local.md` の `@AGENTS.md` で参照 | `.claude/`（rules / skills / vendor プラグイン） |
+| Claude Code | `CLAUDE.md` の `@AGENTS.md` で参照 | `.claude/`（rules / skills / vendor プラグイン） |
 | OpenAI Codex CLI | リポジトリルートの `AGENTS.md` を自動読み込み（`.codex/config.toml` の `project_doc_max_bytes` 内） | `.codex/`（rules の複製 / skills / agents / hooks） |
 | Google Antigravity CLI | 作業ディレクトリの `AGENTS.md` を読み込み | `.agent/`（rules の複製 / skills / agents / plugins） |
 
@@ -55,26 +55,59 @@
 
 - 優先順位は **エンジン別 > 言語別 > 共通**
 - 規約を変更するときは `.claude/rules/` の正本を先に直し、`.codex/rules/`・`.agent/rules/` の複製と
-  `docs/ja-JP/rules/` の日本語訳を追随させる（同期の確認コマンドはリポジトリの `CLAUDE.md` を参照）
+  `docs/ja-JP/rules/` の日本語訳を追随させる
+
+### 複製の同期を確認する
+
+`.codex/rules/` と `.agent/rules/` は `.claude/rules/` の**バイト単位の複製**です
+（`common/answer-policy.md` → `common-answer-policy.md` のように、ディレクトリ区切りを `-` にする）。
+次のコマンドで差分と欠落を検出できます。出力が無ければ同期済みです。
+
+```bash
+for src in .claude/rules/*/*.md; do
+  flat=$(echo "${src#.claude/rules/}" | tr '/' '-')
+  for copy in ".codex/rules/$flat" ".agent/rules/$flat"; do
+    [ -f "$copy" ] || { echo "欠落: $copy"; continue; }
+    cmp -s "$src" "$copy" || echo "差分: $src <-> $copy"
+  done
+done
+```
+
+`docs/ja-JP/rules/` は日本語訳なので内容は一致しません。対応するファイルが在るかだけを見ます。
+
+```bash
+for src in .claude/rules/*/*.md; do
+  [ -f "docs/ja-JP/rules/${src#.claude/rules/}" ] || echo "翻訳なし: ${src#.claude/rules/}"
+done
+```
 
 ## 作業範囲ルール【最重要】
 
-**ファイルの作成・変更・削除が許可されるのは、以下のディレクトリ以下および指定ファイルのみです:**
+**ファイルの作成・変更・削除が許可されるのは、以下のディレクトリ以下および指定ファイルのみです。**
+パスはすべて **リポジトリのルートからの相対** です。
 
-```
-AGENTS.md
-CLAUDE.local.md
-CLAUDE.md
-specs
-.specify
-.claude
-.codex
-.agent
-.zed
-docs
-cpp
-rust
-```
+| 対象 | 内容 |
+|------|------|
+| `AGENTS.md` | エージェント共通の作業ルール（このファイル） |
+| `CLAUDE.md` | Claude Code 用の入口。`@AGENTS.md` でこのファイルを読み込む |
+| `CLAUDE.local.md` | 任意。Claude Code のローカル個人設定を置きたくなったとき用（コミットしない） |
+| `README.md` | プロジェクトの概要 |
+| `参考リンク.md` | 規約の一次情報の一覧 |
+| `.gitignore` / `.gitattributes` | Git の無視設定と改行コードの固定 |
+| `cpp.slnx` / `cpp.vcxproj` / `cpp.vcxproj.filters` | Visual Studio のソリューションとプロジェクト |
+| `packages.config` | NuGet の参照 |
+| `src/` | C++ ソース |
+| `shaders/` | GLSL シェーダー |
+| `scripts/` | spec-kit のランチャー等 |
+| `specs/` | 仕様書. `team-change` が更新する |
+| `docs/` | 日本語訳リファレンス・レビュー結果・マニュアル |
+| `.specify/` | spec-kit のテンプレート・スクリプト |
+| `.claude/` / `.codex/` / `.agent/` | 各エージェントのハーネス |
+| `.zed/` | Zed のプロジェクト設定 |
+| `cpp/` / `rust/` | 各プロジェクトをサブディレクトリに置く構成にしたとき用（現在は未使用） |
+
+ビルド出力（`x64/`）、NuGet が展開したパッケージ（`packages/`）、Visual Studio のローカル状態
+（`.vs/`、`*.vcxproj.user`）は**範囲外**です。編集する必要はなく、ガードが拒否します。
 
 > NOTE: この一覧を変更したら、次の 3 つの `ALLOW_PATTERNS` も同じ内容に揃える
 > （編集範囲ガードはエージェントごとに別のフックで動く）.
@@ -82,12 +115,25 @@ rust
 > - `.claude/vendor/edit-scope-guard/scripts/edit-scope-guard.sh`
 > - `.codex/scripts/edit-scope-guard.sh`
 > - `.agent/.agents/plugins/coding-harness/scripts/edit-scope-guard.sh`
+>
+> パターンは**リポジトリのルートからの相対パス**で書き、先頭に `*/` は付けない.
+> `*/cpp/*` のような書き方にすると、`case` の `*` が `/` にも一致するため、
+> 「チェックアウトしたディレクトリがたまたま `cpp` という名前であること」に判定が依存する.
+> その状態では範囲外のパスまで通り、別の名前で clone すると逆に正しいパスが拒否される.
+> ルート直下のファイルは 1 件ずつ名前で挙げる（`*` が `/` に一致するため、
+> ディレクトリを 1 つ許可したつもりで配下の別ディレクトリまで通ってしまう）.
 
-> NOTE: `CLAUDE.md` が一覧に在るのは、**`/speckit.plan` の手順 3 が `.specify/scripts/bash/update-agent-context.sh`
-> 経由でルートの `CLAUDE.md` を作る**ためです（無ければ `.specify/templates/agent-file-template.md` から新規作成）.
-> このハーネスの入口は `CLAUDE.local.md` → `@AGENTS.md` なので、できた `CLAUDE.md` は**作業ルールの正本ではありません**.
-> Claude Code は両方を自動読み込みするため、`CLAUDE.md` には spec-kit が入れる技術スタックの要約だけを置き、
-> 作業ルールは `AGENTS.md` 側に集約したままにします. `/speckit.plan` に手順 3 を実行させたくない場合はそう指示します.
+> NOTE: ガードは Claude Code のプラグインとして `~/.claude/plugins/cache/` へ複製されて実行される.
+> リポジトリ側のスクリプトを直しても、プラグインを再読み込みするまで実際の判定は変わらない.
+> 変更したら、強制されている内容が意図どおりかを範囲外のパスへの編集で 1 度試して確かめる.
+
+> NOTE: このハーネスの入口は `CLAUDE.md` → `@AGENTS.md` です. `CLAUDE.md` 自体は**作業ルールの正本ではなく**、
+> 正本はこの `AGENTS.md` です.
+>
+> `/speckit.plan` の手順 3 が `.specify/scripts/bash/update-agent-context.sh` 経由で同じ `CLAUDE.md` を更新します.
+> 既にファイルが在る場合は**その場での更新**になり、書き換わるのは `## Active Technologies` と
+> `## Recent Changes` の 2 節だけです（無ければ末尾に追加されます）. したがって `@AGENTS.md` の行は残り、
+> spec-kit が入れる技術スタックの要約と共存します. `/speckit.plan` に手順 3 を実行させたくない場合はそう指示します.
 
 1. **編集はこの範囲限定**: 上記のディレクトリ・ファイル以外は編集しない
 2. **範囲外が必要なときは停止**: 範囲外のファイル変更が必要になった場合は、作業を進めず必ずユーザーに確認する

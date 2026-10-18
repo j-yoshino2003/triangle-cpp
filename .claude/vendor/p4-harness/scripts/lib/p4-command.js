@@ -13,6 +13,34 @@ const GLOBAL_OPTIONS_WITH_VALUE = new Set([
   '-c', '-C', '-d', '-H', '-L', '-p', '-P', '-Q', '-u', '-x', '-z',
 ]);
 
+// シェル経由で p4 を起動するラッパー. `bash -c "p4 submit"` のように、引用符の中身が
+// 1 トークンになる形は、そのまま走査しても p4 呼び出しとして検出できない。
+// ラッパーに渡されたスクリプト文字列を取り出して、再帰的に走査する。
+const SHELL_WRAPPERS = new Set([
+  'bash', 'sh', 'zsh', 'dash', 'ksh', 'ash', 'busybox',
+  'cmd', 'command', 'powershell', 'pwsh',
+  'env', 'nohup', 'sudo', 'doas', 'time', 'timeout', 'xargs', 'winpty', 'script',
+]);
+
+// ラッパーの「次のトークンがスクリプト本文」になるオプション.
+const INLINE_SCRIPT_FLAGS = new Set([
+  '-c', '--command', '/c', '/C', '/k', '/K',
+  '-command', '-Command', '-encodedcommand', '-EncodedCommand',
+]);
+
+// 入れ子の展開はこの深さで打ち切る（`bash -c "bash -c ..."` の無限展開を避けるため）.
+const MAX_WRAPPER_DEPTH = 4;
+
+/**
+ * Strip the shell punctuation that can cling to a token so that `(p4` and
+ * `submit)` compare equal to `p4` and `submit`.
+ */
+function bareToken(token) {
+  return String(token || '')
+    .replace(/^[(){}`$;&|<>]+/, '')
+    .replace(/[(){}`;&|<>]+$/, '');
+}
+
 /**
  * Extract the command string from the hook payload (JSON or plain text).
  */
@@ -137,20 +165,52 @@ function tokenize(segment) {
 }
 
 function isP4Token(token) {
-  const base = token.replace(/^.*[\\/]/, '').toLowerCase();
+  const base = bareToken(token).replace(/^.*[\\/]/, '').toLowerCase();
   return base === 'p4' || base === 'p4.exe';
+}
+
+function isShellWrapperToken(token) {
+  const base = bareToken(token).replace(/^.*[\\/]/, '').toLowerCase();
+  return SHELL_WRAPPERS.has(base) || SHELL_WRAPPERS.has(base.replace(/\.exe$/, ''));
+}
+
+/**
+ * Collect the inline scripts handed to shell wrappers inside one segment,
+ * e.g. the `p4 submit` in `bash -c "p4 submit"`.
+ */
+function collectInlineScripts(tokens) {
+  const scripts = [];
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    if (!isShellWrapperToken(tokens[i])) continue;
+
+    for (let j = i + 1; j < tokens.length; j += 1) {
+      if (!INLINE_SCRIPT_FLAGS.has(tokens[j])) continue;
+      const script = tokens[j + 1];
+      if (typeof script === 'string' && script.trim()) scripts.push(script);
+    }
+  }
+
+  return scripts;
 }
 
 /**
  * Find every p4 invocation in a command string.
  * Returns [{ subcommand, args, globals: { port, client, user } }].
  */
-function findP4Invocations(command) {
+function findP4Invocations(command, depth = 0) {
   const invocations = [];
+  if (depth > MAX_WRAPPER_DEPTH) return invocations;
 
   for (const segment of splitSegments(command)) {
     if (segment.trim().startsWith('#')) continue;
     const tokens = tokenize(segment);
+
+    // ラッパーに渡されたスクリプト本文を先に展開する.
+    for (const script of collectInlineScripts(tokens)) {
+      invocations.push(...findP4Invocations(script, depth + 1));
+    }
+
     const index = tokens.findIndex(isP4Token);
     if (index === -1) continue;
 
@@ -171,7 +231,7 @@ function findP4Invocations(command) {
     if (i >= tokens.length) continue;
 
     invocations.push({
-      subcommand: tokens[i].toLowerCase(),
+      subcommand: bareToken(tokens[i]).toLowerCase(),
       args: tokens.slice(i + 1),
       globals,
     });

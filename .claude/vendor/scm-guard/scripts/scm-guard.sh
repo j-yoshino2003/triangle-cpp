@@ -46,21 +46,53 @@ DENY_REASON='このコマンドはハーネスで禁止されています（リ�
 
 INPUT=$(cat)
 
+# 入力そのものが空なら判定対象が無い. これは「解析に失敗した」とは別なので通す.
+[[ -z "$INPUT" ]] && exit 0
+
+# 固定文のみを使う拒否（JSON のエスケープが要らない形）. node が使えない場合に使う.
+deny_fixed() {
+  printf '%s\n' "$1" >&2
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$1"
+  exit 0
+}
+
+# node はペイロード解析の前提. 無いまま続けると解析結果が空になり、
+# 強制 push などが無言で通る. 検査できないことを隠さずに拒否する.
+if ! command -v node >/dev/null 2>&1; then
+  deny_fixed 'node が見つからないため SCM ガードがコマンドを検査できません。Node.js を PATH に通してから再実行してください。'
+fi
+
 # JSON の解析は node で行う（Claude Code の npm 版は Node.js 前提のため確実に存在する）.
-COMMAND=$(printf '%s' "$INPUT" | node -e "
+# 「解析できて command が無い」と「解析そのものが失敗した」を区別する. 両者を同一視すると、
+# ペイロードの形が変わった時点でガードが無言で無効になる.
+PARSED=$(printf '%s' "$INPUT" | node -e "
 let raw = '';
 process.stdin.on('data', chunk => raw += chunk);
 process.stdin.on('end', () => {
   try {
     const input = JSON.parse(raw).tool_input || {};
-    process.stdout.write(input.command || '');
-  } catch {
-    process.stdout.write('');
+    process.stdout.write('ok:' + (input.command || ''));
+  } catch (e) {
+    process.stdout.write('error:' + ((e && e.message) || 'JSON parse failed'));
   }
 });
-" 2>/dev/null)
+")
 
-# command が取得できない場合は誤ブロックを避けて通す.
+case "$PARSED" in
+  ok:*)
+    COMMAND=${PARSED#ok:}
+    ;;
+  error:*)
+    printf '[Hook] ペイロードを解析できませんでした: %s\n' "${PARSED#error:}" >&2
+    deny_fixed 'ペイロードを解析できないため SCM ガードがコマンドを検査できません。入力の形式が変わった可能性があります。'
+    ;;
+  *)
+    printf '[Hook] node の出力が想定外でした: %s\n' "$PARSED" >&2
+    deny_fixed 'ペイロードの解析結果が想定外のため SCM ガードがコマンドを検査できません。'
+    ;;
+esac
+
+# 解析はできたが command が無い（Bash 以外のツール等）. 判定対象が無いので通す.
 [[ -z "$COMMAND" ]] && exit 0
 
 # ブロックパターンのいずれかに一致すれば拒否する.
