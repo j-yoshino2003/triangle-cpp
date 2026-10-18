@@ -1,0 +1,11 @@
+{
+  "name": "desktop-notify",
+  "version": "1.0.0",
+  "description": "Notification / Stop hooks only: desktop toast when Claude needs input or a task finishes.",
+  "author": {
+    "name": "Local (this project)"
+  },
+  "license": "MIT",
+  "keywords": ["hooks", "notification", "local"],
+  "mcpServers": {}
+}

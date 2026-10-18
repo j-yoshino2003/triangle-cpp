@@ -1,0 +1,90 @@
+{
+  "coding-harness": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && bash .agent/.agents/plugins/coding-harness/scripts/edit-scope-guard.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && bash .agent/.agents/plugins/coding-harness/scripts/scm-guard.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && bash .agent/.agents/plugins/coding-harness/scripts/git-commit-guard.sh",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && bash .agent/.agents/plugins/coding-harness/scripts/git-push-reminder.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && bash .agent/.agents/plugins/coding-harness/scripts/p4-shelve-guard.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && bash .agent/.agents/plugins/coding-harness/scripts/git-pr-created.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && bash .agent/.agents/plugins/coding-harness/scripts/p4-shelved.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && bash .agent/.agents/plugins/coding-harness/scripts/desktop-notify.sh 'タスクが完了しました' 'Info'",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

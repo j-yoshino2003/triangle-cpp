@@ -1,0 +1,17 @@
+{
+  "name": "scm-guard",
+  "version": "1.0.0",
+  "description": "PreToolUse hook only: blocks history-rewriting Git pushes, GitHub CLI state changes, and external publish/deploy commands, including forms with global options.",
+  "author": {
+    "name": "Local (this project)"
+  },
+  "license": "MIT",
+  "keywords": [
+    "hooks",
+    "guard",
+    "git",
+    "github",
+    "local"
+  ],
+  "mcpServers": {}
+}

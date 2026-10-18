@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ECC Codex Git Hook: pre-commit
+# Blocks commits that add high-signal secrets.
+
+if [[ "${ECC_SKIP_GIT_HOOKS:-0}" == "1" || "${ECC_SKIP_PRECOMMIT:-0}" == "1" ]]; then
+  exit 0
+fi
+
+if [[ -f ".ecc-hooks-disable" || -f ".git/ecc-hooks-disable" ]]; then
+  exit 0
+fi
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  exit 0
+fi
+
+# 検査に使う rg が無ければ、通さずに止める。無いまま続けると全ファイルが
+# 「該当なし」として通り、検査したつもりで秘密情報を取り込む。
+if ! command -v rg >/dev/null 2>&1; then
+  printf '\n[ECC pre-commit] rg (ripgrep) not found; cannot scan staged changes.\n' >&2
+  printf 'Install ripgrep, or bypass explicitly with ECC_SKIP_PRECOMMIT=1.\n' >&2
+  exit 1
+fi
+
+# git の失敗を「ステージ無し」と同一視しない。同一視すると検査せずに exit 0 で通る。
+if ! staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"; then
+  printf '\n[ECC pre-commit] git diff --cached failed; cannot determine staged files.\n' >&2
+  exit 1
+fi
+
+if [[ -z "$staged_files" ]]; then
+  exit 0
+fi
+
+has_findings=0
+
+scan_added_lines() {
+  local file="$1"
+  local name="$2"
+  local regex="$3"
+  local added_lines
+  local hits
+  local status
+
+  if ! added_lines="$(git diff --cached -U0 -- "$file" | awk '/^\+\+\+ /{next} /^\+/{print substr($0,2)}')"; then
+    printf '\n[ECC pre-commit] git diff failed for %s; cannot scan it.\n' "$file" >&2
+    exit 1
+  fi
+
+  if [[ -z "$added_lines" ]]; then
+    return 0
+  fi
+
+  # rg の終了コードは 0 = 該当あり、1 = 該当なし、2 以上 = 検査そのものの失敗
+  # （PCRE2 非対応ビルド、不正な正規表現など）。2 以上を「該当なし」と同一視すると
+  # 秘密情報を見逃したまま通すため、ここで分けて止める。エラー出力も捨てない。
+  status=0
+  hits="$(printf '%s\n' "$added_lines" | rg -n --pcre2 "$regex")" || status=$?
+
+  if [[ $status -eq 0 ]]; then
+    printf '\n[ECC pre-commit] Potential secret detected (%s) in %s\n' "$name" "$file" >&2
+    printf '%s\n' "$hits" | head -n 3 >&2
+    has_findings=1
+  elif [[ $status -ge 2 ]]; then
+    printf '\n[ECC pre-commit] rg failed (exit %s) while scanning %s for %s.\n' "$status" "$file" "$name" >&2
+    exit 1
+  fi
+}
+
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+
+  case "$file" in
+    *.png|*.jpg|*.jpeg|*.gif|*.svg|*.pdf|*.zip|*.gz|*.lock|pnpm-lock.yaml|package-lock.json|yarn.lock|bun.lockb)
+      continue
+      ;;
+  esac
+
+  scan_added_lines "$file" "OpenAI key" 'sk-[A-Za-z0-9]{20,}'
+  scan_added_lines "$file" "GitHub classic token" 'ghp_[A-Za-z0-9]{36}'
+  scan_added_lines "$file" "GitHub fine-grained token" 'github_pat_[A-Za-z0-9_]{20,}'
+  scan_added_lines "$file" "AWS access key" 'AKIA[0-9A-Z]{16}'
+  scan_added_lines "$file" "private key block" '-----BEGIN (RSA|EC|OPENSSH|DSA|PRIVATE) KEY-----'
+  scan_added_lines "$file" "generic credential assignment" "(?i)\\b(api[_-]?key|secret|password|token)\\b\\s*[:=]\\s*['\\\"][^'\\\"]{12,}['\\\"]"
+done <<< "$staged_files"
+
+if [[ "$has_findings" -eq 1 ]]; then
+  cat >&2 <<'EOF'
+
+[ECC pre-commit] Commit blocked to prevent secret leakage.
+Fix:
+1) Remove secrets from staged changes.
+2) Move secrets to env vars or secret manager.
+3) Re-stage and commit again.
+
+Temporary bypass (not recommended):
+  ECC_SKIP_PRECOMMIT=1 git commit ...
+EOF
+  exit 1
+fi
+
+exit 0

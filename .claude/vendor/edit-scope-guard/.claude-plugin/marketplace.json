@@ -1,0 +1,21 @@
+{
+  "name": "edit-scope-guard",
+  "owner": {
+    "name": "Local (this project)"
+  },
+  "metadata": {
+    "description": "Local marketplace for the edit-scope guard hook."
+  },
+  "plugins": [
+    {
+      "name": "edit-scope-guard",
+      "source": "./",
+      "description": "PreToolUse hook only: blocks Edit/Write/NotebookEdit outside the allowlist in AGENTS.md.",
+      "version": "1.0.0",
+      "license": "MIT",
+      "category": "workflow",
+      "tags": ["hooks", "guard", "local"],
+      "strict": false
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/edit-scope-guard.sh\""
+          }
+        ],
+        "description": "Block edits outside the allowlist defined in AGENTS.md",
+        "id": "edit-scope-guard"
+      }
+    ]
+  }
+}

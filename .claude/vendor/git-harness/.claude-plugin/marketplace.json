@@ -1,0 +1,21 @@
+{
+  "name": "git-harness",
+  "owner": {
+    "name": "Local (this project)"
+  },
+  "metadata": {
+    "description": "Local marketplace for the git / GitHub workflow harness (derived from everything-claude-code)."
+  },
+  "plugins": [
+    {
+      "name": "git-harness",
+      "source": "./",
+      "description": "Git / GitHub commands, skills, and review agents, plus PreToolUse guard hooks that reject --no-verify and core.hooksPath= and run quality checks before committing.",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "category": "workflow",
+      "tags": ["hooks", "git", "github", "review", "local"],
+      "strict": false
+    }
+  ]
+}

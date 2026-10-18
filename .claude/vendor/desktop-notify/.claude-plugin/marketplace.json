@@ -1,0 +1,21 @@
+{
+  "name": "desktop-notify",
+  "owner": {
+    "name": "Local (this project)"
+  },
+  "metadata": {
+    "description": "Local marketplace for the desktop toast notification hooks."
+  },
+  "plugins": [
+    {
+      "name": "desktop-notify",
+      "source": "./",
+      "description": "Notification / Stop hooks only: desktop toast when input is needed or a task finishes.",
+      "version": "1.0.0",
+      "license": "MIT",
+      "category": "workflow",
+      "tags": ["hooks", "notification", "local"],
+      "strict": false
+    }
+  ]
+}

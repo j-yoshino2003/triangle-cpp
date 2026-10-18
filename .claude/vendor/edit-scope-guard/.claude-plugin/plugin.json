@@ -1,0 +1,11 @@
+{
+  "name": "edit-scope-guard",
+  "version": "1.0.0",
+  "description": "PreToolUse hook only: blocks Edit/Write/NotebookEdit outside the allowlist defined in AGENTS.md.",
+  "author": {
+    "name": "Local (this project)"
+  },
+  "license": "MIT",
+  "keywords": ["hooks", "guard", "local"],
+  "mcpServers": {}
+}

@@ -1,0 +1,21 @@
+{
+  "name": "p4-harness",
+  "owner": {
+    "name": "Local (this project)"
+  },
+  "metadata": {
+    "description": "Local marketplace for the Perforce workflow harness (counterpart of git-harness)."
+  },
+  "plugins": [
+    {
+      "name": "p4-harness",
+      "source": "./",
+      "description": "Perforce commands, skills, and review agents, plus PreToolUse guard hooks that block submit / revert / shelve -d, check opened files before shelving, and hand the shelved changelist to /review-cl.",
+      "version": "0.1.0",
+      "license": "MIT",
+      "category": "workflow",
+      "tags": ["hooks", "perforce", "p4", "review", "local"],
+      "strict": false
+    }
+  ]
+}

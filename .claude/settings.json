@@ -1,0 +1,155 @@
+{
+  "extraKnownMarketplaces": {
+    "edit-scope-guard": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/vendor/edit-scope-guard"
+      }
+    },
+    "desktop-notify": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/vendor/desktop-notify"
+      }
+    },
+    "scm-guard": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/vendor/scm-guard"
+      }
+    },
+    "git-harness": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/vendor/git-harness"
+      }
+    },
+    "p4-harness": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/vendor/p4-harness"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "edit-scope-guard@edit-scope-guard": true,
+    "desktop-notify@desktop-notify": true,
+    "scm-guard@scm-guard": true,
+    "git-harness@git-harness": true,
+    "p4-harness@p4-harness": true
+  },
+  "language": "japanese",
+  "enableAllProjectMcpServers": false,
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(dotnet build)",
+      "Bash(dotnet-build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet --version)",
+      "Bash(func --version)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git status -u)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(git init:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh issue create:*)",
+      "Bash(gh repo create:*)",
+      "Bash(p4 info:*)",
+      "Bash(p4 trust:*)",
+      "Bash(p4 login:*)",
+      "Bash(p4 opened:*)",
+      "Bash(p4 describe:*)",
+      "Bash(p4 print:*)",
+      "Bash(p4 changes:*)",
+      "Bash(p4 files:*)",
+      "Bash(p4 filelog:*)",
+      "Bash(p4 fstat:*)",
+      "Bash(p4 where:*)",
+      "Bash(p4 diff:*)",
+      "Bash(p4 change -o:*)",
+      "Bash(bash .claude/vendor/p4-harness/scripts/p4-connect.sh:*)",
+      "Bash(bash .claude/vendor/p4-harness/scripts/p4-describe.sh:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(tail:*)",
+      "Bash(rg:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(diff:*)",
+      "Bash(wc:*)",
+      "Bash(md5sum:*)",
+      "Bash(tree:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(test:*)",
+      "Bash(tasklist.exe:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(apt list:*)",
+      "Bash(snap list:*)",
+      "WebFetch(domain:learn.microsoft.com)",
+      "WebFetch(domain:docs.microsoft.com)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Skill(speckit.plan)",
+      "Skill(speckit.specify)"
+    ],
+    "deny": [
+      "Bash(dotnet nuget push:*)",
+      "Bash(func azure functionapp publish:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --delete:*)",
+      "Bash(git push --mirror:*)",
+      "Bash(git send-email:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr close:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(gh pr ready:*)",
+      "Bash(gh pr reopen:*)",
+      "Bash(gh issue close:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh issue delete:*)",
+      "Bash(gh issue reopen:*)",
+      "Bash(gh issue transfer:*)",
+      "Bash(gh repo delete:*)",
+      "Bash(gh repo archive:*)",
+      "Bash(gh repo rename:*)",
+      "Bash(gh repo transfer:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(gh release create:*)",
+      "Bash(gh release delete:*)",
+      "Bash(gh release edit:*)",
+      "Bash(gh release upload:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh secret set:*)",
+      "Bash(gh variable set:*)",
+      "Bash(gh api graphql:*)",
+      "Bash(p4 submit:*)",
+      "Bash(p4 revert:*)",
+      "Bash(p4 obliterate:*)",
+      "Bash(p4 shelve -d:*)",
+      "Bash(p4 change -d:*)",
+      "Bash(nuget push:*)",
+      "Bash(npm publish:*)",
+      "Bash(pnpm publish:*)",
+      "Bash(yarn publish:*)",
+      "Bash(bun publish:*)",
+      "Bash(docker push:*)"
+    ]
+  }
+}
