@@ -53,25 +53,49 @@ UI などは持ちません。
 
 ## ビルドと実行
 
+### 初回に必要な準備
+
+| 準備 | 内容 |
+| --- | --- |
+| Vulkan SDK | インストールして、環境変数 `VULKAN_SDK` が設定されていること。未設定ならビルドが `EnsureVulkanSdk` で止まり、足りないファイルを名指しで示します |
+| NuGet の復元 | `packages/` はコミットしていないため、新規 clone には GLFW 本体がありません |
+
+NuGet の復元は Visual Studio のビルド時の自動復元で行われます。`msbuild` を直接叩く場合や
+自動復元が無効な場合は、先に復元してください。復元せずにビルドすると
+`EnsureNuGetPackageBuildImports` が「NuGet パッケージの復元を使ってください」と明示的に止めます。
+
+```bash
+nuget restore cpp.slnx
+```
+
+### ビルド
+
 1. Visual Studio で `cpp.slnx` を開く
 2. 構成を `Debug | x64` にする
-3. ビルドして実行する（`glfw3.dll` は出力ディレクトリへ自動コピーされる）
+3. ビルドする（`glfw3.dll` は出力ディレクトリへ自動コピーされる）
 
 シェーダーは `shaders\*.vert` / `*.frag` をビルド時に `$(VULKAN_SDK)\Bin\glslc.exe` で SPIR-V へ
 コンパイルし、`x64\<構成>\shaders\` に出力します。シェーダーを増やすときは `cpp.vcxproj` の
 `CustomBuild` 項目を 1 行足すだけです。
 
-`src\main.cpp` は現時点ではビルド設定の確認用で、GLFW と Vulkan のバージョンを表示して終了します。
+現時点では C++ のソースがまだ無いため、ビルドしても実行ファイルは生成されません。シェーダーの
+コンパイルと `glfw3.dll` のコピーまでが走ります。
 
 ## ディレクトリ構成
 
 | パス | 内容 |
 | --- | --- |
-| `src/` | C++ ソース |
 | `shaders/` | GLSL シェーダー。ビルド時に SPIR-V へコンパイルされる |
+| `cpp.slnx` / `cpp.vcxproj` / `cpp.vcxproj.filters` | Visual Studio のソリューションとプロジェクト |
+| `packages.config` | NuGet の参照（GLFW） |
 | `docs/manuals/` | セットアップと開発ツールの手順書 |
 | `docs/reviews/` | クロスレビューのレポート |
-| `docs/ja-JP/rules/` | コーディング規約の日本語訳リファレンス |
+| `docs/ja-JP/` | コーディング規約の日本語訳リファレンスとハーネスのガイド |
+| `specs/` | 仕様書（spec-kit） |
+| `scripts/` | spec-kit のランチャー |
+
+AI コーディングエージェントのハーネス（`AGENTS.md`、`CLAUDE.md`、`.claude/`、`.codex/`、
+`.agent/`、`.specify/`、`参考リンク.md`）については [AGENTS.md](AGENTS.md) を参照してください。
 
 ## 開発ツール
 
