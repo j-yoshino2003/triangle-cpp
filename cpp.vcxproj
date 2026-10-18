@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -100,9 +100,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <CustomBuild Include="shaders\triangle.vert" />
     <CustomBuild Include="shaders\triangle.frag" />
   </ItemGroup>
@@ -116,6 +113,8 @@
     </PropertyGroup>
     <Error Condition="!Exists('packages\glfw.3.4.0\build\native\glfw.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\glfw.3.4.0\build\native\glfw.targets'))" />
   </Target>
+  <!-- Vulkan SDK の有無を先に確かめる独自ターゲット。これが無いと、SDK 未インストールの環境では
+       「vulkan/vulkan.h が見つからない」という原因の分かりにくいコンパイルエラーになる。 -->
   <Target Name="EnsureVulkanSdk" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(VULKAN_SDK)' == ''" Text="環境変数 VULKAN_SDK が設定されていません。Vulkan SDK をインストールしたうえで Visual Studio を再起動してください。" />
     <Error Condition="!Exists('$(VULKAN_SDK)\Include\vulkan\vulkan.h')" Text="VULKAN_SDK が指す場所に Vulkan のヘッダーがありません。見つからないファイルは $(VULKAN_SDK)\Include\vulkan\vulkan.h です。" />

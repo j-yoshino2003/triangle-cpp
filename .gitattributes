@@ -17,10 +17,8 @@ scripts/speckit text eol=lf
 # Visual Studio が書き戻すファイルは CRLF で固定する。
 # IDE 側が CRLF で保存するため、LF にすると保存のたびに全行差分になる。
 *.slnx text eol=crlf
-*.sln text eol=crlf
 *.vcxproj text eol=crlf
 *.vcxproj.filters text eol=crlf
-*.props text eol=crlf
 *.targets text eol=crlf
 
 # C++ ソースも Visual Studio が CRLF で保存する。
