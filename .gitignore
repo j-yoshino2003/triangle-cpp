@@ -66,3 +66,15 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Visual Studio（IDE のローカル状態とユーザー固有のプロジェクト設定）
+.vs/
+*.vcxproj.user
+
+# MSBuild の出力（x64/<構成>/ と中間ファイル）
+x64/
+Win32/
+*.tlog
+
+# NuGet（復元で再取得されるパッケージ本体）
+packages/
