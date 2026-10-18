@@ -67,13 +67,16 @@ vcpkg_installed/
 Testing/
 .cache/
 
+# Claude Code のローカル個人設定（共有する設定は CLAUDE.md と .claude/settings.json に置く）
+CLAUDE.local.md
+.claude/settings.local.json
+
 # Visual Studio（IDE のローカル状態とユーザー固有のプロジェクト設定）
 .vs/
 *.vcxproj.user
 
 # MSBuild の出力（x64/<構成>/ と中間ファイル）
 x64/
-Win32/
 *.tlog
 
 # NuGet（復元で再取得されるパッケージ本体）

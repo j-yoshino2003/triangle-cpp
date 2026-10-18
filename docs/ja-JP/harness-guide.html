@@ -33,10 +33,10 @@
 
   <h2>2. セットアップ（新しいプロジェクトに入れる）</h2>
   <ol>
-    <li><code>AGENTS.md</code>・<code>CLAUDE.local.md</code>・<code>docs/</code>・<code>.claude/</code> をプロジェクトルートへコピー</li>
+    <li><code>AGENTS.md</code>・<code>CLAUDE.md</code>・<code>docs/</code>・<code>.claude/</code> をプロジェクトルートへコピー</li>
     <li>Claude Code でフォルダーを開く → ローカルプラグイン（<code>edit-scope-guard</code> / <code>desktop-notify</code> / <code>scm-guard</code> / <code>git-harness</code> / <code>p4-harness</code>）の信頼確認が一度出るので承認（通信は発生しない）。フックはこの 5 プラグインが提供するため、承認しないと編集ガードも SCM ガードも通知も動かない</li>
     <li>Perforce 管理下のファイルも扱う場合のみ、環境変数 <code>P4_PROXY</code> に到達可能な Perforce サーバー（<code>ssl:&lt;host&gt;:&lt;port&gt;</code>）を設定する。p4 コマンドはすべてこれ経由で実行され、アドレスはファイルに書かない。Git だけで使うなら <code>p4-harness</code> は何もしない</li>
-    <li><code>AGENTS.md</code> の作業範囲リストのプレースホルダーを実際の作業ディレクトリに書き換える（<code>CLAUDE.local.md</code> は <code>AGENTS.md</code> を参照するだけなので触らない）</li>
+    <li><code>AGENTS.md</code> の作業範囲リストのプレースホルダーを実際の作業ディレクトリに書き換える（<code>CLAUDE.md</code> は <code>AGENTS.md</code> を参照するだけなので触らない）</li>
     <li><code>.claude/vendor/edit-scope-guard/scripts/edit-scope-guard.sh</code> の <code>ALLOW_PATTERNS</code> を手順 4 の一覧と同じ内容にする（Codex / Antigravity も使うなら <code>.codex/scripts/</code> と <code>.agent/.agents/plugins/coding-harness/scripts/</code> の同名スクリプトも同じ一覧にする。節 7）</li>
     <li>SCM の運用が違う場合は <code>.claude/vendor/scm-guard/scripts/scm-guard.sh</code> の <code>BLOCK_PATTERNS</code> を調整（既定は Perforce の提出・取り消し / git の強制 push・リモートブランチ削除 / <code>gh</code> の書き込み / 公開・デプロイをブロック。通常の <code>git push</code> は許可だが、<code>rules/common/git-workflow.md</code> に従い push 前にブランチ名を示して確認を取る）</li>
     <li>必要なら <code>settings.local.json</code>（モデル・言語・権限）を自分の環境に合わせる。<code>permissions.allow</code> には読み取り系コマンド（<code>ls</code> / <code>grep</code> / <code>git status</code> / <code>dotnet build</code> 等）が登録済みで承認プロンプトが出ません。<code>permissions.deny</code> には <code>scm-guard</code> と同じ禁止コマンドが素の形式で入っており、二段構えの防御になります</li>
@@ -132,7 +132,7 @@
   <pre>
 プロジェクトルート/
 ├── AGENTS.md                    # 作業範囲・回答方針・読む規約ファイルの指示・SCM の手順（Claude Code / Codex / Antigravity 共通）
-├── CLAUDE.local.md              # AGENTS.md への参照のみ（Claude Code 用の入口）
+├── CLAUDE.md                    # AGENTS.md への参照のみ（Claude Code 用の入口）
 ├── docs/ja-JP/                  # 日本語リファレンス（規約・スキルの翻訳・本ガイド。skills/codex/ と skills/antigravity/ も）
 ├── .codex/                      # Codex CLI 版（節 7）: config.toml / hooks.json / scripts / rules の複製 / agents / skills
 ├── .agent/                      # Antigravity CLI 版（節 7）: agents / skills / rules の複製 / .agents/plugins/coding-harness

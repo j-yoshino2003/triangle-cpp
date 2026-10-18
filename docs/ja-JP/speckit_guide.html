@@ -189,14 +189,16 @@ claude
       <code>/speckit.checklist</code> が既存ファイルを上書きしないのと対照的です。
     </p>
     <p>
-      <strong>ルートの <code>CLAUDE.md</code> は作業範囲の外です。</strong>
+      <strong>ルートの <code>CLAUDE.md</code> はこのハーネスの入口です。</strong>
       <code>/speckit.plan</code> の手順 3 は <code>update-agent-context.sh claude</code> を実行し、
-      <code>$REPO_ROOT/CLAUDE.md</code> に書きます（無ければ新規作成）。このハーネスは
-      <code>CLAUDE.local.md</code> → <code>@AGENTS.md</code> 構成でルートに <code>CLAUDE.md</code> を置かないため、
-      新規作成される側です。<code>AGENTS.md</code> の許可リストと 3 つの <code>ALLOW_PATTERNS</code> は
-      <code>CLAUDE.local.md</code> しか持たず、<code>edit-scope-guard</code> のフックも <code>Edit</code> /
-      <code>Write</code> / <code>NotebookEdit</code> しか見ないので、<strong>Bash 経由のこの書き込みは検査されません</strong>。
-      できたファイルは Claude Code が毎セッション自動読み込みするため、作業ルールが二重に並びます。
+      <code>$REPO_ROOT/CLAUDE.md</code> に書きます。このハーネスは
+      <code>CLAUDE.md</code> → <code>@AGENTS.md</code> 構成なのでファイルは既に在り、
+      <strong>新規作成ではなくその場での更新</strong>になります。書き換わるのは
+      <code>## Active Technologies</code> と <code>## Recent Changes</code> の 2 節だけで（無ければ末尾に追加）、
+      <code>@AGENTS.md</code> の行はそのまま残るため、作業ルールが二重に並ぶことはありません。
+      <code>CLAUDE.md</code> は <code>AGENTS.md</code> の許可リストと 3 つの <code>ALLOW_PATTERNS</code> にも入っています。
+      ただし <code>edit-scope-guard</code> のフックは <code>Edit</code> / <code>Write</code> /
+      <code>NotebookEdit</code> しか見ないので、<strong>Bash 経由のこの書き込みはそもそも検査されません</strong>。
       手順 3 を実行させたくないときは <code>/speckit.plan</code> にそう指示してください。
     </p>
   </div>

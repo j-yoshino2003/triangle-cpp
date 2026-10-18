@@ -38,15 +38,8 @@
     "git-harness@git-harness": true,
     "p4-harness@p4-harness": true
   },
-  "model": "opus",
   "language": "japanese",
-  "effortLevel": "medium",
-  "enableWorkflows": true,
-  "autoCompactEnabled": true,
-  "teammateMode": "auto",
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  },
+  "enableAllProjectMcpServers": false,
   "permissions": {
     "allow": [
       "Bash(dotnet build:*)",
@@ -158,6 +151,5 @@
       "Bash(bun publish:*)",
       "Bash(docker push:*)"
     ]
-  },
-  "enableAllProjectMcpServers": false
+  }
 }

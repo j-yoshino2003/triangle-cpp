@@ -45,4 +45,11 @@ Perforce を使う場合は環境変数 `P4_PROXY`（`ssl:<host>:<port>`）を�
 | `team-change` | Agent Teams（共有タスクリスト） | サブエージェントを順に呼ぶオーケストレーション。文脈はすべてプロンプトに書く |
 | レビュー取得 | `git-harness` / `p4-harness` のスクリプト | 同じスクリプト（`.claude/vendor/*/scripts/`、bash）を共用 |
 | フック | Node.js 実装のプラグイン | grep / sed 実装の bash（Node 不要）。ペイロードの形式は公式に未公開のため防御的に走査 |
+| フックの絞り込み | `matcher`（`Bash` や `Edit\|Write\|NotebookEdit`） | `hooks.json` に `matcher` 相当の指定が確認できないため、各スクリプトが冒頭で `hook_is_exec_tool` / `hook_is_write_tool` を見て非該当なら即 `exit 0` する |
 | 許可リスト | `permissions.allow / deny` | 無し（`approval_policy` と `sandbox_mode` で代替し、フックが唯一の防御線） |
+
+> NOTE: `hooks.json` の各コマンドは `cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && bash <相対パス>`
+> の形にしてあります。相対パスのまま起動すると、サブディレクトリが作業ディレクトリのときに
+> `bash` が「No such file or directory」で終わり、**終了コード 0 のままガードが無言で無効になります**
+> （実測で確認済み）。`matcher` と同様、プロジェクトルートを示す環境変数が公式に確認できないため、
+> `git rev-parse` で解決しています。
