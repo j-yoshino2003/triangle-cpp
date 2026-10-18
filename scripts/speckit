@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SPECIFY_DIR="$ROOT_DIR/.specify/scripts/bash"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  scripts/speckit specify "<feature description>" [--short-name <name>] [--number <N>] [--json]
+  scripts/speckit plan [--json]
+  scripts/speckit check [--json] [--paths-only] [--require-tasks] [--include-tasks]
+  scripts/speckit context [codex|claude|gemini|copilot|cursor-agent|qwen|opencode|windsurf|kilocode|auggie|shai|q|bob|qoder]
+
+Aliases:
+  speckit.specify / speckit.plan / speckit.check / speckit.context
+EOF
+}
+
+if [[ $# -eq 0 ]]; then
+  usage
+  exit 1
+fi
+
+cmd="$1"
+shift || true
+
+case "$cmd" in
+  specify|speckit.specify)
+    exec bash "$SPECIFY_DIR/create-new-feature.sh" "$@"
+    ;;
+  plan|speckit.plan)
+    exec bash "$SPECIFY_DIR/setup-plan.sh" "$@"
+    ;;
+  check|speckit.check)
+    exec bash "$SPECIFY_DIR/check-prerequisites.sh" "$@"
+    ;;
+  context|speckit.context)
+    agent="${1:-codex}"
+    exec bash "$SPECIFY_DIR/update-agent-context.sh" "$agent"
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    echo "Unknown command: $cmd" >&2
+    usage
+    exit 1
+    ;;
+esac

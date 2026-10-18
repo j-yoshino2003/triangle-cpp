@@ -1,0 +1,98 @@
+#!/bin/bash
+#---------------------------------------
+# コミット前の内容検査（source して使う）.
+#
+# 秘密情報（error）とデバッグ残骸（warning）の行パターンと、それを 1 ファイル分の内容に当てる関数.
+# git-commit-guard.sh が使う.
+#
+# 提供する関数:
+#   scan_should_check PATH        検査対象の拡張子なら 0 を返す
+#   scan_content LABEL            標準入力の内容を検査し、指摘を stderr に出す.
+#                                 error の件数を SCAN_ERRORS、warning の件数を SCAN_WARNINGS に加算する
+#   scan_description FIRST_LINE   コミットメッセージ 1 行目の形式を検査し、警告を stderr に出す（SCAN_WARNINGS に加算）
+#---------------------------------------
+
+SCAN_EXTENSIONS='\.(cpp|cc|c|h|hpp|inl|cs|py|rs|js|ts|ini|json)$'
+SCAN_MAX_BYTES=$((2 * 1024 * 1024))
+SCAN_ERRORS=${SCAN_ERRORS:-0}
+SCAN_WARNINGS=${SCAN_WARNINGS:-0}
+
+# 秘密情報（見つかったら error）. 「名前|正規表現」の形式.
+SCAN_SECRET_PATTERNS=(
+  'Anthropic API key|sk-ant-[a-zA-Z0-9_-]{20,}'
+  'OpenAI API key|sk-[a-zA-Z0-9]{20,}'
+  'GitHub PAT|ghp_[a-zA-Z0-9]{36}'
+  'GitHub fine-grained token|github_pat_[A-Za-z0-9_]{20,}'
+  'AWS Access Key|AKIA[A-Z0-9]{16}'
+  'hardcoded credential|(password|passwd|secret|api[_-]?key)[[:space:]]*[=:][[:space:]]*['"'"'"][^'"'"'"]{8,}['"'"'"]'
+)
+
+# デバッグ残骸（見つかったら warning）.
+SCAN_DEBUG_PATTERNS=(
+  'UE_LOG(LogTemp, ...)（一時ログ）|\bUE_LOG[[:space:]]*\([[:space:]]*LogTemp\b'
+  'Debug.Log（一時ログ）|\bDebug\.Log(Warning|Error)?[[:space:]]*\('
+  'デバッグブレーク|\b(__debugbreak|DebugBreak)[[:space:]]*\('
+  'console.log|\bconsole\.log[[:space:]]*\('
+  'debugger 文|^[[:space:]]*debugger[[:space:]]*;?[[:space:]]*$'
+  'コンフリクトマーカー|^(<<<<<<<|=======|>>>>>>>)'
+)
+
+SCAN_DESCRIPTION_FORMAT='^(feat|fix|refactor|docs|test|chore|perf|ci):[[:space:]]+[^[:space:]]'
+
+scan_should_check() {
+  printf '%s' "$1" | tr 'A-Z' 'a-z' | grep -qE "$SCAN_EXTENSIONS"
+}
+
+# 標準入力の内容を検査する. $1 = 表示用ラベル（パス）.
+scan_content() {
+  local label="$1" content entry name pattern hits
+  content=$(cat)
+  [[ ${#content} -gt $SCAN_MAX_BYTES ]] && return 0
+
+  local header_printed=0
+  for entry in "${SCAN_SECRET_PATTERNS[@]}"; do
+    name=${entry%%|*}; pattern=${entry#*|}
+    hits=$(printf '%s\n' "$content" | grep -nE "$pattern" | cut -d: -f1 | head -n 20)
+    [[ -z "$hits" ]] && continue
+    [[ $header_printed -eq 0 ]] && { printf '\n[FILE] %s\n' "$label" >&2; header_printed=1; }
+    while IFS= read -r line; do
+      printf '  ERROR Line %s: %s の可能性があります\n' "$line" "$name" >&2
+      SCAN_ERRORS=$((SCAN_ERRORS + 1))
+    done <<< "$hits"
+  done
+
+  for entry in "${SCAN_DEBUG_PATTERNS[@]}"; do
+    name=${entry%%|*}; pattern=${entry#*|}
+    hits=$(printf '%s\n' "$content" | grep -nE "$pattern" | cut -d: -f1 | head -n 20)
+    [[ -z "$hits" ]] && continue
+    [[ $header_printed -eq 0 ]] && { printf '\n[FILE] %s\n' "$label" >&2; header_printed=1; }
+    while IFS= read -r line; do
+      printf '  WARNING Line %s: %s が残っています\n' "$line" "$name" >&2
+      SCAN_WARNINGS=$((SCAN_WARNINGS + 1))
+    done <<< "$hits"
+  done
+  return 0
+}
+
+# コミットメッセージの 1 行目を検査する.
+scan_description() {
+  local first="$1"
+  if [[ -z "$first" ]] || printf '%s' "$first" | grep -qi '<enter description here>'; then
+    printf '  WARNING コミットメッセージが空です。<type>: <description> の形式で書いてください\n' >&2
+    SCAN_WARNINGS=$((SCAN_WARNINGS + 1))
+    return 0
+  fi
+  if ! printf '%s' "$first" | grep -qE "$SCAN_DESCRIPTION_FORMAT"; then
+    printf '  WARNING コミットメッセージの 1 行目が <type>: <description> 形式ではありません: "%s"（type は feat / fix / refactor / docs / test / chore / perf / ci）\n' "$first" >&2
+    SCAN_WARNINGS=$((SCAN_WARNINGS + 1))
+  fi
+  if [[ ${#first} -gt 72 ]]; then
+    printf '  WARNING コミットメッセージの 1 行目が長すぎます（%s 文字、上限 72）\n' "${#first}" >&2
+    SCAN_WARNINGS=$((SCAN_WARNINGS + 1))
+  fi
+  if [[ "$first" == *. ]]; then
+    printf '  WARNING コミットメッセージの 1 行目は末尾にピリオドを付けません\n' >&2
+    SCAN_WARNINGS=$((SCAN_WARNINGS + 1))
+  fi
+  return 0
+}

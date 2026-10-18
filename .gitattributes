@@ -1,0 +1,38 @@
+# 改行コードの固定。
+#
+# このリポジトリは core.autocrlf=true の環境で作業しているため、何も指定しないと
+# チェックアウト時にすべてのテキストが CRLF へ変換される。シェルスクリプトは
+# CRLF になるとシバン行が「/bin/bash\r」として解釈され実行できなくなるので、
+# ハーネスのフックが動かなくなる。拡張子で拾えないものはパスで指定する。
+
+# テキストかどうかは Git に自動判定させる。
+* text=auto
+
+# シェルスクリプトは必ず LF。
+*.sh text eol=lf
+scripts/speckit text eol=lf
+.claude/vendor/git-harness/scripts/codex-git-hooks/pre-commit text eol=lf
+.claude/vendor/git-harness/scripts/codex-git-hooks/pre-push text eol=lf
+
+# Visual Studio が書き戻すファイルは CRLF で固定する。
+# IDE 側が CRLF で保存するため、LF にすると保存のたびに全行差分になる。
+*.slnx text eol=crlf
+*.sln text eol=crlf
+*.vcxproj text eol=crlf
+*.vcxproj.filters text eol=crlf
+*.props text eol=crlf
+*.targets text eol=crlf
+
+# C++ ソースも Visual Studio が CRLF で保存する。
+*.h text eol=crlf
+*.hpp text eol=crlf
+*.cpp text eol=crlf
+
+# バイナリとして扱い、差分も改行変換もしない。
+*.spv binary
+*.lib binary
+*.dll binary
+*.exe binary
+*.pdb binary
+*.png binary
+*.ico binary

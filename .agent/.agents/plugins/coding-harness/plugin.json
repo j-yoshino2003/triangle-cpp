@@ -1,0 +1,4 @@
+{
+  "name": "coding-harness",
+  "description": "Coding standards harness hooks: edit-scope guard, SCM guard, git commit / push guards, PR handoff notice, and the completion toast."
+}

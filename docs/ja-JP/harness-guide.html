@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コーディング規約ハーネス — 使い方ガイド</title>
+<style>
+  body { font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; line-height: 1.8; color: #1f2328; max-width: 960px; margin: 0 auto; padding: 2rem; background: #ffffff; }
+  h1 { font-size: 1.8rem; border-bottom: 3px solid #2563eb; padding-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin-top: 2rem; border-left: 5px solid #2563eb; padding-left: 0.6rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.5rem; color: #374151; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #d0d7de; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+  th { background: #f0f4ff; }
+  code { background: #f6f8fa; padding: 0.1rem 0.35rem; border-radius: 4px; font-family: "Consolas", "Courier New", monospace; font-size: 0.92em; }
+  pre { background: #f6f8fa; padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: "Consolas", "Courier New", monospace; font-size: 0.9em; line-height: 1.5; }
+  .meta { color: #6b7280; font-size: 0.9rem; }
+  ul, ol { padding-left: 1.4rem; }
+  .note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 0.75rem 1rem; margin: 1rem 0; }
+  .loop { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 0.75rem 1rem; margin: 1rem 0; }
+</style>
+</head>
+<body>
+  <h1>コーディング規約ハーネス — 使い方ガイド</h1>
+  <p class="meta">対象: Claude Code（C/C++・C#・Unity・Unreal Engine ／ 完全オフライン動作）</p>
+
+  <h2>1. これは何?</h2>
+  <p>
+    「仕様を渡す → AI が規約どおりに実装 → 別の AI がレビュー → 直す → 完成」という
+    <strong>開発ループを回すための土台</strong>です。コーディング規約・レビューエージェント・チーム開発スキル・
+    安全フックが 1 フォルダーに同梱されており、コピーするだけでどのプロジェクトでも同じループが再現できます。
+  </p>
+
+  <h2>2. セットアップ（新しいプロジェクトに入れる）</h2>
+  <ol>
+    <li><code>AGENTS.md</code>・<code>CLAUDE.local.md</code>・<code>docs/</code>・<code>.claude/</code> をプロジェクトルートへコピー</li>
+    <li>Claude Code でフォルダーを開く → ローカルプラグイン（<code>edit-scope-guard</code> / <code>desktop-notify</code> / <code>scm-guard</code> / <code>git-harness</code> / <code>p4-harness</code>）の信頼確認が一度出るので承認（通信は発生しない）。フックはこの 5 プラグインが提供するため、承認しないと編集ガードも SCM ガードも通知も動かない</li>
+    <li>Perforce 管理下のファイルも扱う場合のみ、環境変数 <code>P4_PROXY</code> に到達可能な Perforce サーバー（<code>ssl:&lt;host&gt;:&lt;port&gt;</code>）を設定する。p4 コマンドはすべてこれ経由で実行され、アドレスはファイルに書かない。Git だけで使うなら <code>p4-harness</code> は何もしない</li>
+    <li><code>AGENTS.md</code> の作業範囲リストのプレースホルダーを実際の作業ディレクトリに書き換える（<code>CLAUDE.local.md</code> は <code>AGENTS.md</code> を参照するだけなので触らない）</li>
+    <li><code>.claude/vendor/edit-scope-guard/scripts/edit-scope-guard.sh</code> の <code>ALLOW_PATTERNS</code> を手順 4 の一覧と同じ内容にする（Codex / Antigravity も使うなら <code>.codex/scripts/</code> と <code>.agent/.agents/plugins/coding-harness/scripts/</code> の同名スクリプトも同じ一覧にする。節 7）</li>
+    <li>SCM の運用が違う場合は <code>.claude/vendor/scm-guard/scripts/scm-guard.sh</code> の <code>BLOCK_PATTERNS</code> を調整（既定は Perforce の提出・取り消し / git の強制 push・リモートブランチ削除 / <code>gh</code> の書き込み / 公開・デプロイをブロック。通常の <code>git push</code> は許可だが、<code>rules/common/git-workflow.md</code> に従い push 前にブランチ名を示して確認を取る）</li>
+    <li>必要なら <code>settings.local.json</code>（モデル・言語・権限）を自分の環境に合わせる。<code>permissions.allow</code> には読み取り系コマンド（<code>ls</code> / <code>grep</code> / <code>git status</code> / <code>dotnet build</code> 等）が登録済みで承認プロンプトが出ません。<code>permissions.deny</code> には <code>scm-guard</code> と同じ禁止コマンドが素の形式で入っており、二段構えの防御になります</li>
+  </ol>
+
+  <h2>3. 開発ループの回し方</h2>
+
+  <div class="loop">
+    <strong>ループ A: 不具合修正・機能変更</strong> — 症状か変更内容を渡すだけ。レビューは含まない（ループ C で別セッション）
+    <pre>/team-change 三角形の頂点色が Rust 版だけ反転して表示される
+/team-change ウィンドウのリサイズに追従してスワップチェーンを再生成する</pre>
+    <ol>
+      <li><strong>調査・設計</strong> — 調査担当が根本原因（不具合）または実装方針（機能変更）と影響範囲・対象ファイルを特定し、更新すべき仕様書（<code>specs/&lt;feature&gt;/spec.md</code>）を見つける（読み取り専用）</li>
+      <li><strong>仕様書更新</strong> — 実装担当が <strong>コードより先に</strong> 仕様書を変更後の挙動に書き換える（無ければ <code>.specify/templates/spec-template.md</code> から新規作成）。曖昧なら推測せず質問</li>
+      <li><strong>実装</strong> — 実装担当だけがファイルを編集し、仕様書を満たす最小限の変更を入れてビルド・テストまで実行</li>
+      <li><strong>責任者チェック</strong> — リードが「依頼 → 仕様 → コード」の整合と影響範囲を最終確認。不一致なら差し戻し</li>
+      <li><strong>納品と引き渡し</strong> — 変更マニュアル（HTML）が生成されて完了。変更は作業ブランチに <strong>未コミットのまま</strong>置き、レビューは <strong>新しいセッションで <code>/review-pr working</code></strong>（ループ C）。commit → push → PR はレビューが通ってから、それぞれ了承を得て進める</li>
+    </ol>
+    ループが途中で止まる条件も組み込み済み: 依頼が曖昧なら推測せず質問、根本原因が特定できなければ停止して報告、編集範囲外が必要になったら停止して確認。
+  </div>
+
+  <div class="loop">
+    <strong>ループ B: 自分で書く / 小さな変更</strong> — スキルを使わない日常の回し方
+    <ol>
+      <li>作業の開始時に Claude が <code>develop</code> から <code>work/&lt;short-name&gt;</code> を切る（<code>rules/common/git-workflow.md</code> の「作業の開始と終了」）</li>
+      <li>実装を依頼すると、規約は自動で適用される（節 5）。ビルドが壊れたらエラーメッセージを渡して最小差分で復旧させる</li>
+      <li>書き終わったら新しいセッションで <code>/review-pr working</code>（ループ C。未コミット分を含む <code>develop</code> との差分）。指摘を直したら再レビュー</li>
+      <li>レビューが通ったら commit → push → PR。それぞれ了承を取ってから進める。コミット前のフックが秘密情報・デバッグ残骸・コミットメッセージの形式を検査する</li>
+    </ol>
+    マージ（<code>gh pr merge</code>）は人間の操作。Claude は拒否される。
+  </div>
+
+  <div class="loop">
+    <strong>ループ C: PR・ブランチ・作業ツリーを別セッションでクロスレビュー</strong> — ループ A の変更はここでレビューする
+    <pre>/review-pr 12
+/review-pr work/swapchain-resize
+/review-pr working</pre>
+    <p>
+      実装したセッションではレビューしません。<strong>新しい Claude Code セッション</strong>で <code>/review-pr</code> を実行すると、
+      git-harness のスクリプトが <code>develop</code> との差分（PR 番号なら gh 経由、<code>working</code> なら未コミット分まで）を取得し、
+      レビューエージェント（<code>code-reviewer</code> / <code>impact-scope-reviewer</code> / <code>silent-failure-hunter</code> / <code>coding-standards-reviewer</code> / <code>comment-analyzer</code> / <code>performance-reviewer</code> / <code>simplicity-reviewer</code>）が独立・並列に検査 →
+      リードが差分突き合わせ検証を行い、CRITICAL / HIGH / MEDIUM / LOW の日本語レポート（<code>docs/reviews/</code>）と判定（APPROVE / WARNING / BLOCK）を出します。
+      修正が要る場合は同じ作業ブランチで直して再レビューします。マージはユーザー自身の操作です（<code>gh pr merge</code> はガードで拒否されます）。
+    </p>
+  </div>
+
+  <div class="loop">
+    <strong>ループ D: Perforce の保留 CL を別セッションでクロスレビュー</strong> — Perforce 管理下のファイルを触ったときだけ使う
+    <pre>/review-cl 12345
+/review-cl 12345 --focus=standards</pre>
+    <p>
+      P4V の保留番号を渡すと、p4-harness のスクリプトがシェルブ済みの差分を取得し、ループ C と同じレビューエージェントが
+      独立・並列に検査してレポート（<code>docs/reviews/</code>）と判定を出します。<strong>完全に読み取り専用</strong>で、
+      ファイル修正も <code>p4 edit</code> / <code>p4 submit</code> / <code>p4 shelve</code> も行いません。指摘の修正は実装セッションで同じ CL に入れ、
+      <code>/p4-shelve</code> で再シェルブして再レビューします。シェルブされていない CL は差分を読めないため、シェルブを促して停止します。
+      提出（<code>p4 submit</code>）は人間の操作で、Claude は拒否されます。
+    </p>
+  </div>
+
+  <div class="loop">
+    <strong>補助: Claude Code 自体について調べる</strong>
+    <pre>/ask-claude-code settings.local.json と settings.json の優先順位は?</pre>
+    <p>フック・設定・権限など Claude Code 本体の仕様を、公式ドキュメント参照エージェントが調査して日本語で回答します（調査専用・設定は勝手に変更しない）。</p>
+  </div>
+
+  <h2>4. ループを守る安全装置</h2>
+  <table>
+    <thead><tr><th>装置</th><th>働き</th></tr></thead>
+    <tbody>
+      <tr><td>編集範囲ガード</td><td>許可ディレクトリ外への Edit / Write / NotebookEdit を機械的に拒否（プラグイン <code>edit-scope-guard</code>。セットアップ手順 4 で範囲を設定）</td></tr>
+      <tr><td>SCM ガード</td><td>Perforce への提出・取り消し（<code>p4 submit</code> / <code>p4 revert</code>）、git のリモート履歴を壊す操作（<code>push --force</code> / <code>push --delete</code> / <code>push --mirror</code> / <code>send-email</code> 等。通常の <code>git push</code> は許可）、<code>gh</code> の状態変更・公開操作（<code>pr merge</code> / <code>release create</code> 等。<code>pr create</code> や <code>issue create</code> は許可）、外部への公開・デプロイをコマンド全文の正規表現で拒否（プラグイン <code>scm-guard</code>。<code>permissions.deny</code> は前方一致のため、オプション付きの形を捕捉できる本フックと併用）</td></tr>
+      <tr><td>Git 品質フック</td><td><code>--no-verify</code> の禁止、コミット前の品質確認、push 前のリマインド、PR 作成後の後処理（プラグイン <code>git-harness</code>。Node.js が必要）</td></tr>
+      <tr><td>P4 品質フック</td><td><code>p4 submit</code> / <code>revert</code> / <code>shelve -d</code> / <code>change -d</code> の拒否、シェルブ前の秘密情報・デバッグ残骸・CL 説明文形式の検査、シェルブ前の確認リマインド、シェルブ後の <code>/review-cl</code> 案内（プラグイン <code>p4-harness</code>。Node.js が必要）</td></tr>
+      <tr><td>編集者 1 名原則</td><td>チームループでは実装担当だけが編集し、調査担当は読み取り専用 — ファイル競合を防止</td></tr>
+      <tr><td>仕様書先行</td><td>ループ A では <code>specs/&lt;feature&gt;/spec.md</code> を更新してからコードに着手する。仕様書に書けない曖昧さは推測せず質問で解消</td></tr>
+      <tr><td>レビューの分離</td><td>実装するセッションはレビューしない。別セッションの <code>/review-pr</code>（PR・ブランチ・<code>working</code>）、Perforce なら <code>/review-cl</code>（シェルブ後）で独立にレビューする</td></tr>
+      <tr><td>回答方針</td><td>不確かなことを断定しない・推測だけで答えない（<code>rules/common/answer-policy.md</code>）</td></tr>
+      <tr><td>toast 通知</td><td>入力待ち・完了を Windows トーストで知らせる — ループを放置して回せる（プラグイン <code>desktop-notify</code>）</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. 規約はどう効くか</h2>
+  <ul>
+    <li><code>.claude/rules/common/</code> のうち frontmatter の <code>paths:</code> を持たない 4 本（<code>answer-policy</code>・<code>coding-style</code>・<code>git-workflow</code>・<code>p4-workflow</code>）は毎セッション自動読み込み。<code>common/code-comments.md</code>・<code>common/code-layout.md</code> と <code>cpp/</code>・<code>csharp/</code>・<code>rust/</code>・<code>unity/</code>・<code>unreal/</code> は <code>paths:</code> に一致するファイル（<code>*.rs</code>、<code>Assets/**</code>、<code>Source/**</code> 等）を読み書きする時だけ読み込まれる。条件読み込みになるかを決めるのは <code>paths:</code> の有無だけで、どのディレクトリに置くかは関係ない</li>
+    <li>優先順位: <strong>エンジン別 &gt; 言語別 &gt; 共通</strong></li>
+    <li>正本は英語（<code>.claude/rules/</code> と <code>.claude/skills/</code>）。日本語で確認したい時は <code>docs/ja-JP/rules/</code> と <code>docs/ja-JP/skills/</code>（変更時は英語 → 日本語の順に更新）</li>
+    <li>コミット種別は <code>feat</code> / <code>fix</code> / <code>refactor</code> / <code>docs</code> / <code>test</code> / <code>chore</code> / <code>perf</code> / <code>ci</code></li>
+  </ul>
+
+  <h2>6. リファレンス</h2>
+
+  <h3>フォルダー構成</h3>
+  <pre>
+プロジェクトルート/
+├── AGENTS.md                    # 作業範囲・回答方針・読む規約ファイルの指示・SCM の手順（Claude Code / Codex / Antigravity 共通）
+├── CLAUDE.local.md              # AGENTS.md への参照のみ（Claude Code 用の入口）
+├── docs/ja-JP/                  # 日本語リファレンス（規約・スキルの翻訳・本ガイド。skills/codex/ と skills/antigravity/ も）
+├── .codex/                      # Codex CLI 版（節 7）: config.toml / hooks.json / scripts / rules の複製 / agents / skills
+├── .agent/                      # Antigravity CLI 版（節 7）: agents / skills / rules の複製 / .agents/plugins/coding-harness
+└── .claude/
+    ├── settings.local.json      # 全設定: プラグイン配線・モデル・言語・権限
+    ├── rules/                   # 規約（英語・正本）: common / cpp / csharp / rust / unity / unreal
+    ├── skills/                  # team-change / git-pr-cross-review / p4-cl-cross-review / ask-claude-code
+    ├── commands/                # spec-kit のスラッシュコマンド（speckit.*）
+    └── vendor/                  # ローカルプラグイン（フックはすべてここに集約）
+        ├── edit-scope-guard/    # 編集範囲ガード（有効）: hooks/hooks.json + scripts/
+        ├── scm-guard/           # SCM・公開ガード（有効）: hooks/hooks.json + scripts/
+        ├── desktop-notify/      # toast 通知（有効）: hooks/hooks.json + scripts/
+        ├── git-harness/         # Git 品質フック・git/GitHub スキル（有効）: hooks/hooks.json + scripts/
+        └── p4-harness/          # P4 品質フック・p4-workflow スキル・/p4-shelve /review-cl /p4-status・レビューエージェント（有効）
+  </pre>
+  <p class="meta">
+    フックは <code>&lt;プラグイン&gt;/hooks/hooks.json</code> にのみ定義します（<code>settings.local.json</code> の
+    <code>"hooks"</code> ブロックには書かない。両方に書くと合算されて二重実行になります）。
+    プラグインの読み込みは Claude Code の起動時のみのため、変更後は再起動が必要です。
+  </p>
+
+  <h3>サブエージェント</h3>
+  <p>
+    このハーネスは<strong>レビュアーのサブエージェント 8 体</strong>を <code>.claude/vendor/git-harness/agents/</code> と
+    <code>.claude/vendor/p4-harness/agents/</code> に同梱しています。<code>/review-pr</code>（スキル
+    <code>git-pr-cross-review</code>）と <code>/review-cl</code>（スキル <code>p4-cl-cross-review</code>）が
+    独立・並列に呼び出すもので、いずれも<strong>読み取り専用</strong>です
+    （ファイルの編集・コミット・push・p4 の状態変更は一切しません）。
+  </p>
+  <table>
+    <thead><tr><th>エージェント</th><th>役割</th><th>出番</th></tr></thead>
+    <tbody>
+      <tr><td><code>code-reviewer</code></td><td>正しさとセキュリティ（ロジック誤り、null／ライフタイム問題、並行性、呼び出し元への影響範囲、差分内の対応漏れ、資格情報の直書き、インジェクション、パストラバーサル）。低い重大度でコード品質（過大な関数、深いネスト、握り潰した失敗、デバッグ残骸）も見る</td><td><code>/review-pr --focus=correctness</code>。既定では常に実行</td></tr>
+      <tr><td><code>impact-scope-reviewer</code></td><td>差分に<strong>含まれていない</strong>追随漏れの検出、7 種類（シグネチャは変わらないのに変わった意味、未処理の列挙値、文字列キー／リフレクション／エディタデータ経由の参照、セーブデータ／アセット／設定／通信ペイロードの互換性、二重実装のもう一方、判別ケースのテストの欠落、差分外に残った古い仕様書やマニュアル）。ビルドが落ちる種類は対象外</td><td><code>--focus=impact</code>。既定では常に実行</td></tr>
+      <tr><td><code>silent-failure-hunter</code></td><td>空の catch、不十分なログ、危険なフォールバック、エラー伝播の欠落、エラー処理そのものの欠落の検出</td><td><code>--focus=errors</code>。既定では常に実行</td></tr>
+      <tr><td><code>coding-standards-reviewer</code></td><td><code>.claude/rules/</code> の規約（共通 + 変更ファイルに対応する言語・エンジン）との突き合わせ。観点は命名、引数、列挙体、初期化、型推論、制御フロー、空行とレイアウト、コメント、機能グループ区切り、ファイルヘッダー、言語固有のイディオム</td><td><code>--focus=standards</code>。既定では常に実行</td></tr>
+      <tr><td><code>comment-analyzer</code></td><td>コメントの事実としての正確さ、説明の網羅性、長期的な価値（陳腐化。規約が禁じる変更履歴コメントを含む）、誤解を招く記述の点検</td><td><code>--focus=comments</code>。既定では常に実行</td></tr>
+      <tr><td><code>performance-reviewer</code></td><td>その変更が持ち込んだ無駄な処理（計算量・割り当て・コピー・I/O・ロック、および捕捉したスコープを生かし続ける長命オブジェクトの保持）の検出。指摘には<strong>発生条件</strong>（通る頻度とデータ量）が必須で、それが書けないものは指摘にしない</td><td><code>--focus=performance</code>。既定では常に実行</td></tr>
+      <tr><td><code>simplicity-reviewer</code></td><td>問題より大きい解になっていないかの検出（利用者が 1 つだけの抽象、重複した処理、手書きの再実装、他のメンバーから導ける状態、変更に必要な範囲より広い境界、回りくどい制御）。振る舞いを変えない提案だけを出す</td><td><code>--focus=simplicity</code>。既定では常に実行</td></tr>
+      <tr><td><code>pr-test-analyzer</code></td><td>変更された各経路の振る舞いの網羅、テストの品質、残っている隙の評価</td><td><code>--focus=tests</code> を指定したときだけ実行</td></tr>
+    </tbody>
+  </table>
+  <p class="meta">
+    <code>--focus</code> を付けない既定では上位 7 体が並列で走ります。レビュアー同士は状態を共有せず、
+    メインセッションが指摘を差分と突き合わせてから <code>docs/reviews/</code> にレポートを書きます。
+  </p>
+
+  <p>
+    これとは別に、調査・設計・汎用の作業は <strong>Claude Code 組み込みのエージェント</strong>に役割を説明して依頼します
+    （チームループのスキルが内部で使うのもこれらです）。
+  </p>
+  <table>
+    <thead><tr><th>エージェント</th><th>役割</th><th>出番</th></tr></thead>
+    <tbody>
+      <tr><td><code>Explore</code></td><td>読み取り専用の横断検索</td><td>対象ファイル・実装箇所の特定</td></tr>
+      <tr><td><code>Plan</code></td><td>実装計画の作成</td><td>複雑な機能・設計判断</td></tr>
+      <tr><td><code>general-purpose</code></td><td>汎用（調査・レビュー・多段作業）</td><td>上記に当てはまらない依頼</td></tr>
+      <tr><td><code>claude-code-guide</code></td><td>Claude Code 本体の仕様調査</td><td><code>/ask-claude-code</code> が内部で使用</td></tr>
+    </tbody>
+  </table>
+
+  <h3>スキル（/コマンド）</h3>
+  <table>
+    <thead><tr><th>コマンド</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>/team-change &lt;不具合 または 変更内容&gt;</code></td><td>ループ A（不具合修正・機能変更）を起動 — 仕様書更新 → 実装 → コミットまで。レビューは含まない。マニュアルは <code>docs/manuals/</code></td></tr>
+      <tr><td><code>/review-pr [PR 番号 | ブランチ | working]</code></td><td>ループ C（クロスレビュー）を起動 — 読み取り専用。レポートは <code>docs/reviews/</code>。<code>/git-pr-cross-review</code> でも同じ</td></tr>
+      <tr><td><code>/review-cl &lt;CL 番号&gt;</code></td><td>ループ D（保留 CL のクロスレビュー）を起動 — 読み取り専用。<code>/p4-cl-cross-review</code> でも同じ</td></tr>
+      <tr><td><code>/p4-shelve [CL 番号 | 対象の説明]</code></td><td>開いているファイルを説明文付き CL にまとめ、確認のうえシェルブ</td></tr>
+      <tr><td><code>/p4-status</code></td><td>開いているファイルと保留 CL の一覧を表示</td></tr>
+      <tr><td><code>/speckit.specify</code> ほか</td><td>spec-kit のコマンド群。仕様書を単独で作る・計画を立てるときに使う（<code>docs/ja-JP/speckit_guide.html</code>）</td></tr>
+      <tr><td><code>/ask-claude-code &lt;質問&gt;</code></td><td>Claude Code 本体の仕様を調査</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>オフライン方針:</strong> プラグインはローカル同梱（npm 依存ゼロ）。非必須通信も設定で抑止済みのため、
+    セットアップ後はネットワーク無しでループを回せます。Claude Code 本体の更新のみ手動（<code>claude update</code>）。
+  </div>
+
+  <h2>7. Codex / Antigravity で使う</h2>
+  <p>
+    同じプロジェクトで <strong>OpenAI Codex CLI</strong>（<code>.codex/</code>）と <strong>Google Antigravity CLI</strong>（<code>.agent/</code>）も使えます。
+    作業ルールは共通の <code>AGENTS.md</code>、規約・スキル・安全装置は Claude Code 版と同じ内容で、各 CLI の仕組みに載せ替えてあります。
+    取得スクリプト（<code>.claude/vendor/git-harness/scripts/review-target.sh</code>、<code>.claude/vendor/p4-harness/scripts/</code>）は bash なので 3 つで共用します。
+  </p>
+
+  <h3>セットアップ（Claude Code 版に追加で）</h3>
+  <ol>
+    <li><code>.codex/</code>（Codex）／ <code>.agent/</code>（Antigravity）をプロジェクトルートへコピー。<code>AGENTS.md</code> は共通なので 1 つ</li>
+    <li>Codex: そのフォルダーで <code>codex</code> を起動してプロジェクトの信頼確認を承認する（未承認だと <code>.codex/</code> の設定・フック・サブエージェントが読み込まれない）。必要なら <code>.codex/config.toml</code> のモデル・推論強度を変える</li>
+    <li>Antigravity: そのフォルダーで CLI を起動する。<code>.agent/skills/</code> はスラッシュコマンドに自動変換され、プラグイン <code>.agent/.agents/plugins/coding-harness/</code> のフックが有効になる</li>
+    <li>編集範囲ガードは CLI ごとに別のフックなので、<code>ALLOW_PATTERNS</code> を 3 箇所（<code>.claude/vendor/edit-scope-guard/scripts/</code>・<code>.codex/scripts/</code>・<code>.agent/.agents/plugins/coding-harness/scripts/</code> の <code>edit-scope-guard.sh</code>）とも <code>AGENTS.md</code> の一覧に揃える</li>
+  </ol>
+
+  <h3>コマンドの対応</h3>
+  <table>
+    <thead><tr><th>操作</th><th>Claude Code</th><th>Codex</th><th>Antigravity</th></tr></thead>
+    <tbody>
+      <tr><td>ループ A: 不具合修正・機能変更</td><td><code>/team-change</code></td><td><code>/prompts:team-change</code></td><td><code>/team-change</code></td></tr>
+      <tr><td>ループ C: クロスレビュー</td><td><code>/review-pr &lt;PR | ブランチ | working&gt;</code></td><td><code>/prompts:git-pr-cross-review &lt;同左&gt;</code></td><td><code>/git-pr-cross-review &lt;同左&gt;</code></td></tr>
+      <tr><td>ループ D: 保留 CL のクロスレビュー</td><td><code>/review-cl &lt;CL&gt;</code></td><td><code>/prompts:p4-cl-cross-review &lt;CL&gt;</code></td><td><code>/p4-cl-cross-review &lt;CL&gt;</code></td></tr>
+      <tr><td>CLI 本体の仕様調査</td><td><code>/ask-claude-code</code></td><td><code>/prompts:ask-codex</code></td><td><code>/ask-antigravity</code></td></tr>
+      <tr><td>spec-kit</td><td><code>/speckit.*</code></td><td colspan="2">未移植。仕様書は <code>team-change</code> が更新する（<code>.specify/templates/spec-template.md</code> を使う）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Claude Code 版との違い</h3>
+  <table>
+    <thead><tr><th>項目</th><th>Claude Code</th><th>Codex</th><th>Antigravity</th></tr></thead>
+    <tbody>
+      <tr><td>共通規約の読み込み</td><td><code>.claude/rules/common/</code> のうち <code>paths:</code> を持たない 4 本を自動読み込み</td><td colspan="2">自動読み込みが無いため、<code>AGENTS.md</code> の指示に従ってエージェント自身が読む。作業開始時に読むのは <code>common-answer-policy</code>・<code>common-coding-style</code>・<code>common-git-workflow</code>・<code>common-p4-workflow</code> の 4 本。<code>common-code-comments</code>・<code>common-code-layout</code> と言語別は同じ <code>rules/</code> の複製を「編集前に読む」指示</td></tr>
+      <tr><td>ループ A の分担</td><td>Agent Teams（共有タスクリスト）</td><td colspan="2">リード（メインセッション）が <code>investigator</code> → <code>implementer</code> を順に呼ぶ。サブエージェント同士は状態を共有しないため、文脈はすべてプロンプトに書く</td></tr>
+      <tr><td>レビュアー</td><td><code>git-harness</code> / <code>p4-harness</code> の agents</td><td><code>.codex/agents/*.toml</code>（同じ 8 体、<code>sandbox_mode = "read-only"</code>）</td><td><code>.agent/agents/*.md</code>（同じ 8 体。読み取り専用モードが無いためプロンプトで「編集しない」を明示）</td></tr>
+      <tr><td>フック</td><td>Node.js 実装のプラグイン</td><td colspan="2">grep / sed 実装の bash（Node 不要）。編集範囲ガード・SCM ガード・git コミットガード（<code>--no-verify</code> 禁止 + 秘密情報・デバッグ残骸・メッセージ形式）・push リマインド・p4 シェルブガード・PR 作成後／シェルブ後の案内・完了通知。ペイロードの形式は公式に未公開のため、候補キーを防御的に走査する</td></tr>
+      <tr><td>許可リスト</td><td><code>permissions.allow / deny</code></td><td>無し（<code>approval_policy</code> と <code>sandbox_mode</code>。フックが唯一の防御線）</td><td>CLI の permissions 設定に依存</td></tr>
+    </tbody>
+  </table>
+  <p class="meta">
+    各フォルダーの <code>README.md</code> に、その CLI 固有の配置と制約をまとめています。スキルの日本語訳は
+    <code>docs/ja-JP/skills/codex/</code> と <code>docs/ja-JP/skills/antigravity/</code> にあります。
+  </p>
+</body>
+</html>

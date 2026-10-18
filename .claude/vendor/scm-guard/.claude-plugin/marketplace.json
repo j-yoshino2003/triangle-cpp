@@ -1,0 +1,27 @@
+{
+  "name": "scm-guard",
+  "owner": {
+    "name": "Local (this project)"
+  },
+  "metadata": {
+    "description": "Local marketplace for the SCM / release write guard hook."
+  },
+  "plugins": [
+    {
+      "name": "scm-guard",
+      "source": "./",
+      "description": "PreToolUse hook only: blocks history-rewriting Git pushes, GitHub CLI state changes, and external publish/deploy commands, including forms with global options.",
+      "version": "1.0.0",
+      "license": "MIT",
+      "category": "workflow",
+      "tags": [
+        "hooks",
+        "guard",
+        "git",
+        "github",
+        "local"
+      ],
+      "strict": false
+    }
+  ]
+}

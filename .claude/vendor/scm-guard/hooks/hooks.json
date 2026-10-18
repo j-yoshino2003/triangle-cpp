@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/scm-guard.sh\""
+          }
+        ],
+        "description": "Block history-rewriting Git pushes, GitHub CLI state changes, and external publish/deploy commands, including forms with global options",
+        "id": "scm-guard"
+      }
+    ]
+  }
+}

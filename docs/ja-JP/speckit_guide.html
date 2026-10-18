@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>spec-kit — 使い方ガイド</title>
+<style>
+  body { font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; line-height: 1.8; color: #1f2328; max-width: 960px; margin: 0 auto; padding: 2rem; background: #ffffff; }
+  h1 { font-size: 1.8rem; border-bottom: 3px solid #2563eb; padding-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin-top: 2rem; border-left: 5px solid #2563eb; padding-left: 0.6rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.5rem; color: #374151; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #d0d7de; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+  th { background: #f0f4ff; }
+  code { background: #f6f8fa; padding: 0.1rem 0.35rem; border-radius: 4px; font-family: "Consolas", "Courier New", monospace; font-size: 0.92em; }
+  pre { background: #f6f8fa; padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: "Consolas", "Courier New", monospace; font-size: 0.9em; line-height: 1.5; }
+  .meta { color: #6b7280; font-size: 0.9rem; }
+  ul, ol { padding-left: 1.4rem; }
+  .note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 0.75rem 1rem; margin: 1rem 0; }
+  .loop { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 0.75rem 1rem; margin: 1rem 0; }
+</style>
+</head>
+<body>
+  <h1>spec-kit — 使い方ガイド</h1>
+  <p class="meta">
+    対象: <strong>Claude Code のみ</strong>。spec-kit のスラッシュコマンドは <code>.claude/commands/speckit.*.md</code> にしか無く、
+    Codex CLI / Antigravity CLI には入っていない。他のエージェントから使うときは節 7 の <code>scripts/speckit</code> を直接呼ぶ。
+  </p>
+
+  <h2>1. これは何 / <code>/team-change</code> との使い分け</h2>
+  <p>
+    spec-kit は「自然言語の要望 → 仕様書 → 計画 → タスク → 実装」を 1 機能ずつ回すコマンド群です。
+    生成物は <code>specs/&lt;NNN-short-name&gt;/</code> に溜まります。
+  </p>
+  <p>ハーネスの <code>/team-change</code> と範囲が重なるので、先に使い分けを決めてください。</p>
+  <table>
+    <thead><tr><th>使うもの</th><th>向いている場面</th></tr></thead>
+    <tbody>
+      <tr><td><code>/team-change</code></td><td>既にある機能の不具合修正・仕様変更。調査 → 仕様書更新 → 実装 → 責任者チェックが 1 回のループで終わる。仕様書は既存の <code>specs/&lt;feature&gt;/spec.md</code> を書き換える</td></tr>
+      <tr><td><code>/speckit.*</code></td><td>新しい機能をゼロから起こす。仕様を詰めてからコードに入りたい。工程がコマンドに分かれているので、途中で止めて人が確認できる</td></tr>
+    </tbody>
+  </table>
+  <p>どちらも書き込み先は <code>specs/</code> で同じです。片方で作った仕様書をもう片方が更新しても問題ありません。</p>
+
+  <h2>2. 最初に 1 回だけ: <code>/speckit.constitution</code></h2>
+  <div class="note">
+    <strong>ここを飛ばすと下流が空回りします。</strong>
+    <code>.specify/memory/constitution.md</code> は <strong>spec-kit のプレースホルダーテンプレートのまま</strong>です
+    （導入先で埋める前提。リポジトリの <code>CLAUDE.md</code> 参照）。下流のコマンドがこのファイルを読みます。
+    <ul>
+      <li><code>/speckit.plan</code> は constitution を読み（<code>speckit.plan.md</code> 手順 2）、<strong>計画の Constitution Check 節をそこから埋める</strong>（同 手順 3）</li>
+      <li><code>/speckit.analyze</code> は constitution を<strong>「非交渉（non-negotiable）」</strong>として扱い、違反を<strong>自動的に CRITICAL</strong> にする（<code>speckit.analyze.md</code> の Constitution Authority）</li>
+    </ul>
+    つまり未記入のままだと、計画の Constitution Check は空のテンプレートを参照し、analyze の一番強いゲートが一度も発火しません。
+  </div>
+  <pre>/speckit.constitution</pre>
+  <p>
+    プロジェクトに 1 回で済みます。原則を変えたいときだけ再実行します（このコマンドは
+    <code>.specify/templates/</code> 側の依存テンプレートも合わせて同期します）。
+  </p>
+
+  <h2>3. 標準フロー</h2>
+  <pre>/speckit.constitution   ← プロジェクトに 1 回だけ
+      ↓
+/speckit.specify → /speckit.clarify → /speckit.plan → /speckit.tasks → /speckit.analyze → /speckit.implement
+                                           ↓                ↓
+                                  /speckit.checklist   /speckit.taskstoissues（任意）</pre>
+  <div class="note">
+    <strong><code>/speckit.analyze</code> は <code>/speckit.tasks</code> の後です。</strong>
+    <code>spec.md</code> / <code>plan.md</code> / <code>tasks.md</code> の 3 つを突き合わせる点検なので、
+    <code>check-prerequisites.sh --require-tasks</code> を通して走ります。<code>tasks.md</code> が無いと
+    そこで止まります。
+  </div>
+
+  <table>
+    <thead><tr><th>コマンド</th><th>役割</th><th>作る / 更新するもの</th></tr></thead>
+    <tbody>
+      <tr><td><code>/speckit.constitution</code></td><td>プロジェクトの原則を作る・更新する。依存テンプレートも同期する</td><td><code>.specify/memory/constitution.md</code></td></tr>
+      <tr><td><code>/speckit.specify</code></td><td>自然言語の要望から仕様書を作る。<strong>ブランチも切る</strong>（節 5）</td><td><code>specs/&lt;NNN-short-name&gt;/spec.md</code></td></tr>
+      <tr><td><code>/speckit.clarify</code></td><td>仕様の穴を<strong>最大 5 問</strong>の的を絞った質問で埋め、回答を仕様書へ書き戻す</td><td><code>spec.md</code> を更新</td></tr>
+      <tr><td><code>/speckit.plan</code></td><td>仕様書と constitution から設計を起こす。Phase 0 で調査、Phase 1 でデータモデル・契約・クイックスタート。<strong>再実行すると <code>plan.md</code> がテンプレートで上書きされる</strong>（節 6）</td><td><code>plan.md</code>、必要に応じて <code>research.md</code> / <code>data-model.md</code> / <code>contracts/</code> / <code>quickstart.md</code>、ルートの <code>CLAUDE.md</code>（節 6）</td></tr>
+      <tr><td><code>/speckit.analyze</code></td><td><code>spec.md</code> / <code>plan.md</code> / <code>tasks.md</code> の整合を<strong>非破壊で</strong>点検する。constitution 違反は自動 CRITICAL</td><td>（レポートのみ。ファイルは書き換えない）</td></tr>
+      <tr><td><code>/speckit.checklist</code></td><td>「英語の単体テスト」として機能ごとのチェックリストを作る。ドメインごとに別ファイル（<code>ux.md</code> / <code>api.md</code> など）で、<strong>既存ファイルは上書きせず追記</strong>する</td><td><code>specs/&lt;NNN-short-name&gt;/checklists/&lt;type&gt;.md</code></td></tr>
+      <tr><td><code>/speckit.tasks</code></td><td>設計から<strong>依存順に並んだ</strong>実装タスクを起こす</td><td><code>tasks.md</code></td></tr>
+      <tr><td><code>/speckit.taskstoissues</code></td><td>タスクを GitHub の issue に変換する（任意）</td><td>GitHub の issue（節 7 の注意）</td></tr>
+      <tr><td><code>/speckit.implement</code></td><td><code>tasks.md</code> のタスクを実行する。手順 10 に SCM の開始と終了が組み込まれている（節 8）</td><td>ソースコード</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. 規模別の使い分け</h2>
+  <table>
+    <thead><tr><th>規模</th><th>流れ</th></tr></thead>
+    <tbody>
+      <tr><td>小（既存コードの微調整）</td><td><code>/team-change</code> で足りることが多い。spec-kit を使うなら <code>specify → plan → implement</code></td></tr>
+      <tr><td>普通の機能</td><td><code>specify → clarify → plan → tasks → implement</code></td></tr>
+      <tr><td>複雑（複数モジュール・状態機械・非同期）</td><td><code>specify → clarify → plan → tasks → analyze → implement</code>。受け入れ条件が多いなら <code>plan</code> の後に <code>checklist</code></td></tr>
+    </tbody>
+  </table>
+  <p>
+    <code>clarify</code> を飛ばすと後で効きます。特に<strong>状態遷移・データの持ち主・所有権と寿命</strong>は、
+    仕様で決めずに実装に入ると書き直しになります。
+  </p>
+
+  <h2>5. ブランチ名の衝突（一番つまずく所）</h2>
+  <div class="note">
+    <p><strong>spec-kit の命名規約とこのプロジェクトの git-flow は噛み合いません。</strong>仕組みから説明します。</p>
+    <ul>
+      <li><code>/speckit.specify</code> は <code>.specify/scripts/bash/create-new-feature.sh</code> を呼び、その中で
+        <code>git checkout -b &lt;NNN&gt;-&lt;short-name&gt;</code> を<strong>現在の HEAD から</strong>実行する（例: <code>001-swapchain-resize</code>）</li>
+      <li>一方 <code>.claude/rules/common/git-workflow.md</code> は「<code>develop</code> から切った <code>feature/&lt;name&gt;</code>」「<code>develop</code> / <code>main</code> に直接コミットしない」と定めている</li>
+      <li>さらに <code>.specify/scripts/bash/common.sh</code> の <code>check_feature_branch()</code> は、現在のブランチ名が
+        <code>^[0-9]{3}-</code> に一致しないと <code>ERROR: Not on a feature branch</code> で <strong>exit 1</strong> する。
+        これを呼ぶのは <code>setup-plan.sh</code> と <code>check-prerequisites.sh</code> で、
+        <strong><code>/speckit.specify</code> 以外のすべてのコマンド</strong>がそのどちらかを通る。つまり
+        <code>feature/&lt;name&gt;</code> に居ると <strong><code>/speckit.clarify</code> 以降が全部止まる</strong>
+        （<code>clarify</code> / <code>tasks</code> / <code>analyze</code> / <code>checklist</code> / <code>implement</code> /
+        <code>taskstoissues</code> が <code>check-prerequisites.sh</code>、<code>plan</code> が <code>setup-plan.sh</code>）。
+        節 3 のフロー図で <code>plan</code> より前に居る <code>clarify</code> が最初の関門になる</li>
+    </ul>
+    <p>
+      逃げ道は環境変数 <code>SPECIFY_FEATURE</code> です。<code>common.sh</code> の <code>get_current_branch()</code> は
+      <strong>git より先に</strong> <code>SPECIFY_FEATURE</code> を見るので、ブランチ名と仕様フォルダー名を切り離せます。
+    </p>
+  </div>
+
+  <h3>運用 A: プロジェクトの命名を守る（推奨）</h3>
+  <pre>【Claude Code で】 develop に居ることを確認してから（新しいブランチは現在の HEAD から切られる）
+/speckit.specify ウィンドウのリサイズに追従してスワップチェーンを再生成する
+→ 001-swapchain-resize が作られて checkout される
+
+【Claude Code で】 プロジェクトの命名に付け替える
+git switch -c feature/swapchain-resize
+
+【Claude Code を終了し、シェルで】 環境変数を設定してから Claude Code を起動し直す
+export SPECIFY_FEATURE=001-swapchain-resize
+claude
+
+【Claude Code で】 以降は普通に進める
+/speckit.clarify
+/speckit.plan</pre>
+  <p>
+    <code>specs/</code> のフォルダー名は <code>001-swapchain-resize</code> のままなので、環境変数がそれを指します。
+    PR のベースは <code>develop</code>、ブランチ名は規約どおり、spec-kit のスクリプトも通ります。
+  </p>
+  <div class="note">
+    <p>
+      <strong><code>export</code> はシェル側で、Claude Code を起動する前に行います。</strong>
+      スクリプトを実際に起動するのは Claude Code の Bash 子プロセスなので、その親シェルに入っていないと効きません。
+      1 機能ごとに値が変わるため <code>settings.local.json</code> の <code>env</code> には置けません。
+    </p>
+    <p>
+      <strong>機能を切り替えたら値も貼り替えること（終わったら <code>unset SPECIFY_FEATURE</code>）。</strong>
+      この値は<strong>一切検証されません</strong>。<code>get_current_branch()</code> は値をそのまま返し、
+      <code>check_feature_branch()</code> は <code>^[0-9]{3}-</code> の形だけを見て、
+      <code>find_feature_dir_by_prefix()</code> は 3 桁番号の前方一致でフォルダーを解決します。
+      2 本目の機能に移ったのに <code>001-...</code> が残っていると、<code>/speckit.plan</code> 以降がすべて
+      <code>specs/001-.../</code> を対象に動き、<strong>エラーも警告も出ません</strong>。
+      <code>plan</code> の無条件上書き（節 6）と重なると、1 本目の計画書が黙って空テンプレートに戻ります。
+      現在の対象は <code>scripts/speckit check --paths-only</code> の <code>FEATURE_DIR</code> で確認できます。
+    </p>
+  </div>
+
+  <h3>運用 B: spec-kit の命名に寄せる</h3>
+  <p>
+    <code>001-swapchain-resize</code> のまま最後まで進めます。環境変数は要りませんが、ブランチ名が
+    <code>feature/&lt;name&gt;</code> 規約から外れます。後から名前を直すには切り直しが必要で、
+    <code>scm-guard</code> が強制 push とリモートブランチ削除を拒否するため、push 済みだと手間が増えます。
+  </p>
+
+  <h2>6. 生成物の置き場所</h2>
+  <table>
+    <thead><tr><th>パス</th><th>作るコマンド</th><th>元テンプレート</th></tr></thead>
+    <tbody>
+      <tr><td><code>.specify/memory/constitution.md</code></td><td><code>/speckit.constitution</code></td><td>—</td></tr>
+      <tr><td><code>specs/&lt;NNN-short-name&gt;/spec.md</code></td><td><code>/speckit.specify</code></td><td><code>.specify/templates/spec-template.md</code></td></tr>
+      <tr><td><code>specs/&lt;NNN-short-name&gt;/plan.md</code></td><td><code>/speckit.plan</code>（<strong>毎回上書き</strong>）</td><td><code>plan-template.md</code></td></tr>
+      <tr><td><code>specs/&lt;NNN-short-name&gt;/tasks.md</code></td><td><code>/speckit.tasks</code></td><td><code>tasks-template.md</code></td></tr>
+      <tr><td><code>specs/&lt;NNN-short-name&gt;/checklists/*.md</code></td><td><code>/speckit.checklist</code>（既存は追記）</td><td><code>checklist-template.md</code></td></tr>
+      <tr><td><code>research.md</code> / <code>data-model.md</code> / <code>quickstart.md</code> / <code>contracts/</code></td><td><code>/speckit.plan</code>（必要に応じて）</td><td>—</td></tr>
+      <tr><td><strong>ルートの <code>CLAUDE.md</code></strong></td><td><code>/speckit.plan</code> の手順 3（<code>update-agent-context.sh claude</code>）</td><td><code>agent-file-template.md</code>（無ければ新規作成）</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <p>
+      <strong><code>/speckit.plan</code> の再実行は <code>plan.md</code> をテンプレートで上書きします。</strong>
+      <code>setup-plan.sh</code> は存在確認もバックアップもせずに <code>cp</code> するので、Technical Context・
+      Constitution Check の判定・Phase 0 / 1 の成果など<strong>書き足した内容は警告無しに消えます</strong>。
+      <code>analyze</code> の指摘を受けて <code>plan</code> を回し直す前に、commit するか退避してください。
+      <code>/speckit.checklist</code> が既存ファイルを上書きしないのと対照的です。
+    </p>
+    <p>
+      <strong>ルートの <code>CLAUDE.md</code> は作業範囲の外です。</strong>
+      <code>/speckit.plan</code> の手順 3 は <code>update-agent-context.sh claude</code> を実行し、
+      <code>$REPO_ROOT/CLAUDE.md</code> に書きます（無ければ新規作成）。このハーネスは
+      <code>CLAUDE.local.md</code> → <code>@AGENTS.md</code> 構成でルートに <code>CLAUDE.md</code> を置かないため、
+      新規作成される側です。<code>AGENTS.md</code> の許可リストと 3 つの <code>ALLOW_PATTERNS</code> は
+      <code>CLAUDE.local.md</code> しか持たず、<code>edit-scope-guard</code> のフックも <code>Edit</code> /
+      <code>Write</code> / <code>NotebookEdit</code> しか見ないので、<strong>Bash 経由のこの書き込みは検査されません</strong>。
+      できたファイルは Claude Code が毎セッション自動読み込みするため、作業ルールが二重に並びます。
+      手順 3 を実行させたくないときは <code>/speckit.plan</code> にそう指示してください。
+    </p>
+  </div>
+  <p class="meta">
+    <code>specs/</code> と <code>.specify/</code> は編集許可範囲に入っています（<code>AGENTS.md</code> の作業範囲ルール）。
+    上記のとおり<strong>ルートの <code>CLAUDE.md</code> だけは入っていません</strong>。
+  </p>
+
+  <h2>7. <code>scripts/speckit</code>（スクリプト層）</h2>
+  <p>
+    スラッシュコマンドの下で動いているのが <code>.specify/scripts/bash/</code> の 4 本です。
+    <code>scripts/speckit</code> はそれを呼ぶラッパー CLI で、Claude Code を介さずに手で実行できます。
+  </p>
+  <pre>scripts/speckit specify "&lt;feature description&gt;" [--short-name &lt;name&gt;] [--number N] [--json]
+scripts/speckit plan [--json]
+scripts/speckit check [--json] [--paths-only] [--require-tasks] [--include-tasks]
+scripts/speckit context [codex|claude|gemini|copilot|cursor-agent|...]</pre>
+  <table>
+    <thead><tr><th>サブコマンド</th><th>実体</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><code>specify</code></td><td><code>create-new-feature.sh</code></td><td>番号付きブランチと <code>specs/&lt;NNN-...&gt;/spec.md</code> を作る</td></tr>
+      <tr><td><code>plan</code></td><td><code>setup-plan.sh</code></td><td>計画テンプレートを配置する（<strong>既存の <code>plan.md</code> を無条件に上書き</strong>。節 6）。ブランチ検査あり（節 5）</td></tr>
+      <tr><td><code>check</code></td><td><code>check-prerequisites.sh</code></td><td>どの成果物が揃っているかを確認する。<code>--paths-only</code> は<strong>成果物の有無検査だけ</strong>を飛ばしてパスを出す（<strong>ブランチ検査は <code>--paths-only</code> でも走る</strong>ので、<code>feature/&lt;name&gt;</code> 上では診断に使ったこのコマンド自体が止まる。節 5）</td></tr>
+      <tr><td><code>context</code></td><td><code>update-agent-context.sh</code></td><td>指定エージェント向けのコンテキストファイルを更新する（<code>codex</code> が既定）</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <p>
+      <code>/speckit.taskstoissues</code> は <strong>GitHub MCP サーバー経由で issue を作ります</strong>
+      （<code>speckit.taskstoissues.md</code> の <code>tools: ['github/github-mcp-server/issue_write']</code>）。
+      <strong>このハーネスは GitHub MCP サーバーを同梱・配線していません</strong>（<code>.mcp.json</code> は無く、
+      <code>settings.local.json</code> は <code>enableAllProjectMcpServers: false</code>）。使うなら接続を別途用意してください。
+    </p>
+    <p>
+      <strong>この書き込みは <code>scm-guard</code> の検査対象外です（止まりません）。</strong>
+      <code>scm-guard</code> はシェルコマンドの文面を正規表現で検査する仕組みで、MCP ツールの呼び出しを一切見ないためです
+      （素の <code>gh issue create</code> のほうも意図的に許可されています）。外向きの操作がガード無しで通るので、
+      実行前にユーザーの了承を取ってください。
+    </p>
+  </div>
+
+  <h2>8. 作業の開始と終了（SCM）</h2>
+  <p>
+    <code>/speckit.implement</code> の<strong>手順 10</strong> は、実装の前後に SCM の手続きを挟みます
+    （<code>.claude/rules/common/git-workflow.md</code>）。<code>implement</code> は「実装したら終わり」ではありません。
+  </p>
+  <div class="loop">
+    <ul>
+      <li><strong>最初の編集の前</strong> — checkout が <code>develop</code> から切った <code>feature/&lt;name&gt;</code> に在ることを確認する。
+        <code>develop</code> や <code>main</code> に居るなら先に切る（リリース済みコードへの緊急修正なら <code>main</code> から <code>hotfix/&lt;version&gt;</code>）</li>
+      <li><strong>完了検証の後</strong> — <strong>新しいセッション</strong>で <code>/review-pr working</code> を実行する案内を出すまでが完了
+        （<code>develop</code> との差分。未コミット分も含む）。commit・push・PR はそのレビューの後、それぞれユーザーの了承を得て進める</li>
+    </ul>
+  </div>
+  <p>
+    Perforce 管理下のファイルを触る場合は <code>.claude/rules/common/p4-workflow.md</code> の手順に読み替えます
+    （保留 CL を作ってから編集し、シェルブ後に <code>/review-cl &lt;CL&gt;</code>）。
+  </p>
+
+  <h2>9. つまずきどころ</h2>
+  <table>
+    <thead><tr><th>症状</th><th>原因と対処</th></tr></thead>
+    <tbody>
+      <tr><td><code>ERROR: Not on a feature branch. Current branch: feature/xxx</code></td><td>節 5。シェルで <code>export SPECIFY_FEATURE=&lt;NNN-short-name&gt;</code> を設定してから Claude Code を起動し直す。<code>/speckit.specify</code> 以外のすべてのコマンドで出る（<code>clarify</code> が最初、<code>check --paths-only</code> でも出る）</td></tr>
+      <tr><td>計画の Constitution Check が空っぽ / <code>analyze</code> が何も言わない</td><td>constitution が未記入。節 2 の <code>/speckit.constitution</code> を先に回す</td></tr>
+      <tr><td><code>/speckit.implement</code> や <code>/speckit.analyze</code> が <code>tasks.md</code> が無いと言う</td><td>どちらも前提検査を <code>--require-tasks</code> 付きで走らせる。<code>/speckit.tasks</code> を先に実行する</td></tr>
+      <tr><td><code>ERROR: Multiple spec directories found with prefix</code></td><td><code>specs/</code> に同じ 3 桁番号のフォルダーが 2 つある。1 番号 1 フォルダーに整理する</td></tr>
+      <tr><td><code>/speckit.specify</code> が意図しない親から分岐した</td><td>ブランチは<strong>現在の HEAD</strong> から切られる。実行前に <code>develop</code>（または基にしたいブランチ）へ移動する</td></tr>
+      <tr><td><code>plan</code> / <code>tasks</code> が別の機能のフォルダーを触っている</td><td><code>echo $SPECIFY_FEATURE</code> を確認する。古い値が残っていると<strong>エラー無しで</strong>そちらの <code>specs/</code> を対象にする（節 5）。現在の対象は <code>scripts/speckit check --paths-only</code> の <code>FEATURE_DIR</code> で分かる</td></tr>
+      <tr><td><code>/speckit.specify</code> の番号が既存と衝突した</td><td>slash コマンド経路は <strong>short-name 単位</strong>で番号を数える（<code>speckit.specify.md</code> 手順 2 が <code>[0-9]+-&lt;short-name&gt;$</code> で検索し <code>--number N+1</code> を渡す）。新しい short-name なら <code>specs/001-*</code> が在っても 001 から振られる。番号を固定したいなら <code>scripts/speckit specify --number N</code> を直接呼ぶ（slash コマンドに <code>--number</code> を書いても、手順 2 が後ろに付ける値で上書きされる）</td></tr>
+      <tr><td>番号が飛ぶ / リモートの番号と重なる</td><td>素の <code>scripts/speckit specify</code> はリモートとローカルのブランチ、および <code>specs/</code> の<strong>全体</strong>から最大値 + 1 を取る。ただし <code>create-new-feature.sh</code> は <code>git fetch --all --prune 2&gt;/dev/null || true</code> で<strong>取得失敗を黙殺する</strong>ので、オフライン・認証切れ・プロキシ不通では手元の参照だけで番号が決まり、リモートの番号と衝突しうる（警告も出ない）。確実にしたいなら <code>--number N</code> を渡すか、<code>git fetch</code> が通る状態で実行する</td></tr>
+      <tr><td><code>plan.md</code> に書いた内容が消えた</td><td><code>/speckit.plan</code> の再実行が <code>plan.md</code> をテンプレートで無条件に上書きする（節 6）。再実行の前に commit するか退避する</td></tr>
+    </tbody>
+  </table>
+
+  <p class="meta">
+    ハーネス全体の使い方は <code>docs/ja-JP/harness-guide.html</code>。
+  </p>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/desktop-notify.sh\" '入力が必要です' 'Warning'",
+            "async": true
+          }
+        ],
+        "description": "Desktop toast when Claude needs user input",
+        "id": "notify-input-needed"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/desktop-notify.sh\" 'タスクが完了しました' 'Info'",
+            "async": true
+          }
+        ],
+        "description": "Desktop toast when a task finishes",
+        "id": "notify-task-done"
+      }
+    ]
+  }
+}

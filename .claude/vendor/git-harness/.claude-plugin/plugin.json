@@ -1,0 +1,9 @@
+{
+  "name": "git-harness",
+  "description": "Git workflow harness: git/GitHub skills, slash commands, review agents, and guard hooks for git operations. Derived from everything-claude-code (Apache-2.0).",
+  "version": "0.1.0",
+  "author": {
+    "name": "Local (this project)"
+  },
+  "hooks": "./hooks/hooks.json"
+}

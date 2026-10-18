@@ -1,0 +1,86 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/scripts/edit-scope-guard.sh",
+            "statusMessage": "編集範囲を確認しています",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/scripts/scm-guard.sh",
+            "statusMessage": "SCM 操作を確認しています",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/scripts/git-commit-guard.sh",
+            "statusMessage": "コミット前チェックを実行しています",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/scripts/git-push-reminder.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/scripts/p4-shelve-guard.sh",
+            "statusMessage": "シェルブ前チェックを実行しています",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/scripts/git-pr-created.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/scripts/p4-shelved.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/scripts/desktop-notify.sh 'タスクが完了しました' 'Info'",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

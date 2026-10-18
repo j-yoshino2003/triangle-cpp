@@ -1,0 +1,38 @@
+# Codex CLI — project configuration for the coding standards harness.
+#
+# NOTE: this project layer (`.codex/`) is only loaded once the project is trusted.
+#       Approve the trust prompt on the first launch, or set the trust level in
+#       `~/.codex/config.toml`:
+#           [projects."/absolute/path/to/this/project"]
+#           trust_level = "trusted"
+#
+# Precedence (highest first): CLI flags > project config > profile > user config > system > defaults.
+
+# Model pinned for this project.
+model = "gpt-5.6"
+
+# Reasoning effort. Allowed: minimal | low | medium | high | xhigh.
+# "xhigh" is model-dependent — if the pinned model does not support it, fall back to "high".
+model_reasoning_effort = "xhigh"
+
+# Pause for approval when Codex asks for it, instead of never or on every untrusted command.
+approval_policy = "on-request"
+
+# Writes are confined to the workspace; the edit-scope hook narrows this further.
+sandbox_mode = "workspace-write"
+
+# AGENTS.md budget (default 32768 = 32 KiB). The shared AGENTS.md stays well under it because the
+# rules live in `.codex/rules/` and AGENTS.md only tells the agent which of them to read.
+project_doc_max_bytes = 32768
+
+# Desktop toast when Codex needs the user's attention (the harness's desktop-notify equivalent).
+# Codex passes its notification JSON payload as an extra argument; the script ignores it.
+notify = ["bash", ".codex/scripts/desktop-notify.sh", "入力が必要です", "Warning"]
+
+# Hooks (edit-scope guard, SCM guard, git commit / push guards, p4 shelve guard, completion toast)
+# are wired in `.codex/hooks.json`. Skills live in `.codex/skills/` and subagents in `.codex/agents/`.
+
+# NOTE: Codex has no per-command allowlist key (verified against the official config reference),
+#       so a `Bash(cargo build:*)` style allowlist cannot be expressed here.
+#       Frequently used build commands (cargo build / test, cmake, git status / diff / log) are
+#       approved interactively instead.

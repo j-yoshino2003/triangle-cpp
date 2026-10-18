@@ -1,0 +1,9 @@
+{
+  "name": "p4-harness",
+  "description": "Perforce workflow harness: p4 workflow skill, slash commands for shelving and review, review agents, and guard hooks for p4 operations (shelve quality check, destructive-command block, review handoff).",
+  "version": "0.1.0",
+  "author": {
+    "name": "Local (this project)"
+  },
+  "hooks": "./hooks/hooks.json"
+}
